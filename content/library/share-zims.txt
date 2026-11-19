@@ -1,0 +1,3 @@
+# Wiki collections (.zim files) that may go into a copy you hand to someone else.
+# One file name per line. Only list a collection once you have checked its license.
+# Everything not listed here stays out of share builds. An empty list means no collections ship.

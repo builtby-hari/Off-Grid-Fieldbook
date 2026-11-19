@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guides</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+nav.chips { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 10px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); }
+nav.chips a.chip { display: inline-block; text-decoration: none; padding: 5px 11px; border-radius: 999px; font-size: var(--t-sm); }
+section.card { scroll-margin-top: 60px; padding: 20px 22px; }
+section.card h2 { font-size: var(--t-xl); }
+.lede { color: var(--ink2); font-size: var(--t-sm); }
+.chart-title { font-size: var(--t-md); margin-top: 12px; }
+.grid-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--gap); }
+/* bars: one color, the value printed beside each bar */
+.bars .lab { font-size: var(--t-sm); color: var(--ink2); }
+.bars .val { font: 600 var(--t-sm) var(--mono); text-align: right; white-space: nowrap; }
+.cols2 .bars { grid-template-columns: minmax(100px, 170px) 1fr auto; }
+/* flowchart */
+.flow { display: flex; flex-direction: column; gap: 0; max-width: 760px; }
+.node { border: 2px solid var(--line); border-radius: var(--r-lg); padding: 10px 14px; background: var(--card); }
+.node b { display: block; font-size: var(--t-md); }
+.node.q { border-color: var(--info); }
+.node.act { border-color: var(--good); }
+.node.stop { border-color: var(--crit); background: var(--crit-bg); }
+.arrow { text-align: center; color: var(--muted); font-size: 18px; line-height: 1; padding: 4px 0; }
+.branch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.yes, .no { font-size: var(--t-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+/* MARCH */
+.march { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.march .card { padding: 12px; }
+.march .card:first-child { background: var(--crit-bg); border-color: var(--crit); }
+.letter { font-size: 34px; font-weight: 800; line-height: 1; color: var(--accent); }
+.march .card:first-child .letter { color: var(--crit); }
+.march h3 { font-size: var(--t-md); }
+.march p { font-size: var(--t-sm); color: var(--ink2); }
+/* tables and pills */
+tr.hl td { font-weight: 700; }
+.src { margin-top: 4px; }
+@media (max-width: 860px) { .branch { grid-template-columns: 1fr; } .cols2 .bars { grid-template-columns: 110px 1fr auto; } }
+@media print { nav.chips { display: none; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="page topo">
+<h1>Guides</h1>
+<p class="muted">Worked examples for a household of 4, with standard guidance (FEMA, CDC, EPA). Print these while you have power.</p>
+<nav class="chips noprint" aria-label="Sections">
+  <a class="chip" href="#water">Water</a><a class="chip" href="#purify">Purify water</a>
+  <a class="chip" href="#power">Power</a><a class="chip" href="#food">Food math</a><a class="chip" href="#march">Trauma first aid</a>
+  <a class="chip" href="#radio">Radio channels</a>
+</nav>
+
+<section class="card" id="water">
+  <h2>Water: how much you need</h2>
+  <p class="lede">FEMA's rule is 1 gallon per person per day for drinking and basic hygiene. Summer heat can double it.</p>
+  <div class="grid-tiles">
+    <div class="tile"><b>4 gal</b><span>per day for 4 people</span></div>
+    <div class="tile"><b>28 gal</b><span>for 1 week</span></div>
+    <div class="tile"><b>360 gal</b><span>for 90 days (normal weather)</span></div>
+    <div class="tile"><b>720 gal</b><span>for 90 days in 100°F heat</span></div>
+  </div>
+  <h3 class="chart-title">How long your rain barrels last (3 × 55 gal = 165 gal, full)</h3>
+  <div class="bars" id="waterBars"></div>
+  <div class="src">Source: FEMA Ready.gov water guidance. Barrels refill when it rains, so treat this as the dry-spell worst case.</div>
+</section>
+
+<section class="card" id="purify">
+  <h2>Make water safe to drink</h2>
+  <p class="lede">Start at the top. The first question decides whether the water can be treated at all.</p>
+  <div class="flow">
+    <div class="node q"><b>Could the water have fuel, toxic chemicals or radioactive material in it?</b>For example it smells of fuel or chemicals, or it is floodwater.</div>
+    <div class="arrow">↓</div>
+    <div class="branch">
+      <div><div class="yes">Yes, or not sure</div><div class="node stop"><b>Do not drink it. Stop here.</b>Boiling and disinfecting cannot make this water safe. Use bottled water or a different source, and ask your health department for advice.</div></div>
+      <div><div class="no">No</div><div class="node act"><b>Carry on.</b>The steps below kill germs. They do not remove chemicals.</div></div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="node q"><b>Is the water cloudy?</b></div>
+    <div class="arrow">↓</div>
+    <div class="branch">
+      <div><div class="yes">Yes</div><div class="node act"><b>Filter it through a clean cloth, paper towel or coffee filter.</b>Or let it settle and draw off the clear water.</div></div>
+      <div><div class="no">No</div><div class="node act"><b>Go to the next step.</b></div></div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="node act"><b>If you have a portable water filter, run the water through it.</b>Follow the filter's instructions. Portable filters do not remove viruses, so always disinfect afterwards.</div>
+    <div class="arrow">↓</div>
+    <div class="node q"><b>Then kill the germs. Boiling is the best way. Pick one:</b></div>
+    <div class="arrow">↓</div>
+    <div class="branch">
+      <div class="node act"><b>Boil</b>Bring clear water to a rolling boil for 1 minute. Above 6,500 feet, boil for 3 minutes. Let it cool, then store it in clean, covered containers.</div>
+      <div class="node act"><b>Bleach (unscented household bleach)</b>If the label has instructions for drinking water, follow them. If not: 8 drops per gallon for 5% to 9% bleach. Double it if the water is cloudy, colored or very cold. Stir and let it stand at least 30 minutes.</div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="node q"><b>Used bleach? Check for a slight chlorine smell.</b>If there is none, repeat the dose and let it stand another 15 minutes before use.</div>
+  </div>
+  <p class="src">Bleach does not kill some parasites as well as boiling does, including Cryptosporidium and Giardia. Official instructions from your health department or water utility always win.</p>
+  <div class="src">Sources: CDC, "How to Make Water Safe in an Emergency" (reviewed Sept. 19, 2024). EPA, "Emergency Disinfection of Drinking Water" (updated Feb. 24, 2026). EPA's table gives 8 drops per gallon for 6% bleach and 6 drops for 8.25% bleach. This guide was checked against both in Nov. 2026.</div>
+</section>
+
+<section class="card" id="power">
+  <h2>Power: what each setup gives you</h2>
+  <p class="lede">Four example setups, from a small starter kit to whole-room comfort.</p>
+  <div class="cols2">
+    <div><h3 class="chart-title" style="margin-top:0">Daily power use (kWh per day)</h3><div class="bars" id="pwLoad"></div></div>
+    <div><h3 class="chart-title" style="margin-top:0">Cloudy winter days the battery covers</h3><div class="bars" id="pwDays"></div></div>
+  </div>
+  <table class="t">
+    <tr><th>Setup</th><th>Battery</th><th>Solar</th><th>Inverter</th><th>Runs</th></tr>
+    <tr><td>Starter</td><td>2 kWh</td><td>400 W</td><td>1,000 W</td><td>Lights, phones, radio, fan</td></tr>
+    <tr class="hl"><td>Core</td><td>6 kWh</td><td>1,200 W</td><td>2,000 W</td><td>Plus the fridge or freezer</td></tr>
+    <tr><td>Core + office gear</td><td>7.7 kWh</td><td>1,600 W</td><td>2,000 W</td><td>Plus a small computer and the network</td></tr>
+    <tr><td>Comfort</td><td>12 kWh</td><td>2,000 W</td><td>3,000 W</td><td>Plus a window AC (cycling)</td></tr>
+  </table>
+  <div class="src">Example numbers for planning, not a measurement of your gear. Winter sun is about 3.5 to 4.3 hours a day in North Texas.</div>
+</section>
+
+<section class="card" id="food">
+  <h2>Food math for 90 days</h2>
+  <p class="lede">About 2,200 calories per person per day. Here's what 4 people need, shown as pounds of dry staples.</p>
+  <div class="grid-tiles">
+    <div class="tile"><b>8,800</b><span>calories a day, 4 people</span></div>
+    <div class="tile"><b>792k</b><span>calories for 90 days</span></div>
+    <div class="tile"><b>~480 lb</b><span>if it were all rice</span></div>
+    <div class="tile"><b>~26 gal</b><span>of oil if all from fat (don't)</span></div>
+  </div>
+  <h3 class="chart-title">A balanced 90-day pantry (pounds, 4 people)</h3>
+  <div class="bars" id="foodBars"></div>
+  <div class="src">Calories per pound (dry): rice about 1,650, lentils and dal about 1,600, atta about 1,650, oil about 4,000, sugar about 1,750. The mix above adds up to about 760k calories, close to the full 90 days. Freezer food, cans and the garden add variety and vitamins. Estimates, not medical advice.</div>
+</section>
+
+<section class="card" id="march">
+  <h2>Trauma first aid: MARCH</h2>
+  <p class="lede">Work left to right. Don't move on until the step is handled. Bleeding kills fastest, so it comes first.</p>
+  <div class="march">
+    <div class="card"><div class="letter">M</div><h3>Massive bleeding</h3><p>Hard direct pressure. Limb spurting or soaking through: tourniquet 2 to 3 inches above the wound, tight until bleeding stops. Write the time on it.</p></div>
+    <div class="card"><div class="letter">A</div><h3>Airway</h3><p>Talking means the airway is open. If not: head tilt, chin lift. Unconscious and breathing: recovery position on their side.</p></div>
+    <div class="card"><div class="letter">R</div><h3>Respiration</h3><p>Watch the chest rise. Chest wound with air sucking in: cover it with plastic taped on 3 sides.</p></div>
+    <div class="card"><div class="letter">C</div><h3>Circulation</h3><p>Pale, cold, sweaty, fast pulse means shock. Lay flat, raise legs if no spine injury, keep warm. Not breathing: start CPR.</p></div>
+    <div class="card"><div class="letter">H</div><h3>Hypothermia and head</h3><p>Keep them warm even in mild weather. Watch for confusion, vomiting or unequal pupils after a head hit.</p></div>
+  </div>
+  <div class="src">Source: Stop the Bleed and TCCC "MARCH" order. For full detail open Where There Is No Doctor (Books tab).</div>
+</section>
+
+<section class="card" id="radio">
+  <h2>Radio channels</h2>
+  <p class="lede">Listening is always legal. GMRS needs an FCC license (no test) to transmit; FRS channels don't.</p>
+  <div class="cols2">
+    <div>
+      <h3 class="chart-title" style="margin-top:0">GMRS / FRS (your handhelds)</h3>
+      <table class="t">
+        <thead><tr><th>Ch</th><th>MHz</th><th>Use</th></tr></thead>
+        <tbody id="gmrs"></tbody>
+      </table>
+    </div>
+    <div>
+      <h3 class="chart-title" style="margin-top:0">NOAA Weather Radio</h3>
+      <table class="t"><thead><tr><th>Ch</th><th>MHz</th></tr></thead><tbody id="noaa"></tbody></table>
+      <p class="muted small" style="margin-top:6px">Scan all 7. The one that comes in clearest is your local station.</p>
+      <h3 class="chart-title">Other good ones</h3>
+      <table class="t">
+        <tr><td>CB channel 9</td><td>27.065 MHz</td><td>Emergency</td></tr>
+        <tr><td>CB channel 19</td><td>27.185 MHz</td><td>Highway and truckers</td></tr>
+        <tr><td>2 m ham calling</td><td>146.520 MHz</td><td>Listen only without a license</td></tr>
+        <tr><td>Meshtastic</td><td>915 MHz (US)</td><td>Default "LongFast" channel</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="src">Source: FCC Part 95 channel plan; NOAA NWR frequencies. Agree on a family channel and a backup now, and write them on the whiteboard.</div>
+</section>
+</div>
+
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script>
+"use strict";
+const $ = UI.$;
+
+// bar chart: one series, one color, the value printed beside each bar
+function bars(el, rows, unit, max) {
+  const m = max || Math.max(...rows.map(r => r[1]));
+  el.innerHTML = rows.map(([k, v, note]) => `<span class="lab" title="${UI.esc(k)}: ${v} ${unit}${note ? " (" + UI.esc(note) + ")" : ""}">${UI.esc(k)}</span>
+    <div class="meter" aria-hidden="true"><span style="width:${(v / m * 100).toFixed(1)}%"></span></div>
+    <span class="val">${v.toLocaleString()} ${unit}</span>`).join("");
+}
+bars($("#pwLoad"), [["Starter", 1.1], ["Core", 2.2], ["Core + office gear", 3.6], ["Comfort", 4.2]], "kWh");
+bars($("#pwDays"), [["Starter", 2.1], ["Core", 3.8], ["Core + office gear", 2.7], ["Comfort (AC on)", 3.7], ["Comfort (AC off)", 12]], "days");
+bars($("#waterBars"), [["Normal weather", 41, "165 gal / 4 gal a day"], ["100°F heat", 20, "165 gal / 8 gal a day"], ["Strict rationing", 82, "half a gallon each"]], "days");
+bars($("#foodBars"), [["Rice", 200], ["Atta (wheat flour)", 100], ["Dal and lentils", 90], ["Cooking oil", 20], ["Sugar and jaggery", 25], ["Salt and spices", 10]], "lb");
+
+// radio tables
+const G = [];
+[462.5625,462.5875,462.6125,462.6375,462.6625,462.6875,462.7125].forEach((f, i) => G.push([i + 1, f, "GMRS and FRS, shared"]));
+[467.5625,467.5875,467.6125,467.6375,467.6625,467.6875,467.7125].forEach((f, i) => G.push([i + 8, f, "FRS only, low power"]));
+[462.5500,462.5750,462.6000,462.6250,462.6500,462.6750,462.7000,462.7250].forEach((f, i) => G.push([i + 15, f, i + 15 === 20 ? "Common emergency channel" : "GMRS high power"]));
+$("#gmrs").innerHTML = G.map(([c, f, u]) => `<tr${c === 20 ? ' class="hl"' : ""}><td>${c}</td><td>${f.toFixed(4)}</td><td>${c === 20 ? '<span class="pill bad">' + u + "</span>" : u}</td></tr>`).join("");
+$("#noaa").innerHTML = [162.400,162.425,162.450,162.475,162.500,162.525,162.550].map((f, i) => `<tr><td>WX${i + 1}</td><td>${f.toFixed(3)}</td></tr>`).join("");
+
+// The address can name a section (#water, #purify, ...): scroll to it.
+UI.onRoute(rest => {
+  const id = rest.replace(/^#/, "");
+  const sec = id && document.getElementById(id);
+  if (sec) sec.scrollIntoView();
+});
+</script>
+</body>
+</html>

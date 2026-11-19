@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* Layout only. Every color, size and font comes from the ui.css tokens. */
+  .intro { max-width: 70ch; }
+  .door-title { font-size: var(--t-xl); font-weight: 700; line-height: 1.2; }
+  .card .ct { font-weight: 600; font-size: var(--t-md); line-height: 1.3; }
+  .card .why { color: var(--ink2); font-size: var(--t-sm); }
+  .sect-note { color: var(--ink2); font-size: var(--t-sm); margin: 4px 0 0; max-width: 75ch; }
+  .shelf-note { margin: 0; color: var(--muted); font-size: var(--t-sm); }
+  .deeper { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+
+  /* frames: plants, guides, and documents fill the screen, with a bar on top */
+  .frame-page { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+  .frame-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--side); }
+  .frame-bar .ttl { font-weight: 600; flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .frame-page iframe { flex: 1 1 auto; width: 100%; min-height: 0; border: 0; background: var(--card); }
+  .doc-head { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; max-height: 34vh; overflow-y: auto; }
+  .doc-head h1 { font-size: var(--t-xl); }
+  .doc-head .note { margin: 0; color: var(--ink2); font-size: var(--t-sm); }
+  .opened { margin: 0; color: var(--muted); font-size: var(--t-sm); }
+
+  /* reader: contents on the left, text on the right */
+  .reader { display: grid; grid-template-columns: minmax(170px, 240px) minmax(0, 1fr); align-items: start; min-height: 100%; }
+  .toc { position: sticky; top: 0; align-self: stretch; height: 100vh; overflow-y: auto; padding: 14px 10px 40px; background: var(--side); border-right: 1px solid var(--line); }
+  .toc button { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: var(--r); padding: 4px 6px; color: var(--ink2); font-size: var(--t-sm); line-height: 1.35; cursor: pointer; }
+  .toc button:hover { background: var(--chip); color: var(--ink); }
+  .toc .l2 { padding-left: 16px; } .toc .l3 { padding-left: 28px; }
+  .rmain { min-width: 0; max-width: 100%; }
+  .rdoc, .rdoc > * { min-width: 0; max-width: 100%; }
+  .meta-lines { display: flex; flex-direction: column; gap: 3px; color: var(--ink2); font-size: var(--t-sm); overflow-wrap: anywhere; }
+  .prose img { max-width: 100%; }
+  .rbar { position: sticky; top: 0; z-index: 2; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 9px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .rbar .ttl { font-weight: 600; flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rdoc { padding: 20px 28px 60px; display: flex; flex-direction: column; gap: 12px; }
+  .rdoc header { display: flex; flex-direction: column; gap: 8px; }
+  .prose h1, .prose h2, .prose h3, .prose h4 { scroll-margin-top: 70px; }
+  .prose .pageref .linkbtn { font: var(--t-xs) var(--mono); }
+  .flash { outline: 2px solid var(--link); outline-offset: 4px; border-radius: var(--r); }
+  .pdfdlg { width: min(1000px, 96vw); max-width: 96vw; height: 90vh; padding: 0; }
+  .pdfdlg .spread { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .pdfdlg iframe { width: 100%; height: calc(90vh - 50px); border: 0; background: var(--card); }
+  @media (max-width: 760px) {
+    .reader { grid-template-columns: minmax(0, 1fr); }
+    .toc { position: static; height: auto; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+    .rdoc { padding: 16px 16px 48px; }
+  }
+</style>
+</head>
+<body class="topo">
+<main id="view" class="page"><p class="empty">Loading the library...</p></main>
+
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script src="md.js"></script>
+<script>
+"use strict";
+(() => {
+  const esc = UI.esc;
+  const view = document.getElementById("view");
+
+  // The eight doors on the home page, in order. A door opens a topic (catalog "topic" value),
+  // or a route given by "go". Plants and the wiki library are reached only from their doors.
+  const DOORS = [
+    { label: "Water", line: "Find it, clean it, store it", topic: "water" },
+    { label: "Food", line: "Store it, preserve it, grow it", topic: "food" },
+    { label: "Power and tools", line: "Power setups, engines, metalwork", topic: "tools" },
+    { label: "Health", line: "First aid, sanitation, medicine", topic: "health" },
+    { label: "Hazards", line: "Storms, heat, cold, fire, radiation", topic: "hazards" },
+    { label: "Plants", line: "About 6,000 edible and medicinal plants", go: "learn/plants" },
+    { label: "How-to", line: "Radio, projects and know-how", topic: "howto" },
+    { label: "Wiki library", line: "Wikipedia, iFixit, medical and repair collections", go: "wiki/" },
+  ];
+  // "Go deeper" on each topic page: a wiki library search, plainly labeled.
+  const DEEPER = {
+    water: { label: "Search the wiki library for water purification", search: "water purification" },
+    food: { label: "Search the wiki library for food preservation", search: "food preservation" },
+    tools: { label: "Search the wiki library for repair", search: "repair" },
+    health: { label: "Search the wiki library for first aid", search: "first aid" },
+    hazards: { label: "Search the wiki library for emergency", search: "emergency" },
+  };
+  // License in words. A word always shows, never color alone.
+  const LIC = {
+    pd: "Public domain",
+    cc: "Share with credit",
+    pu: "Personal use only",
+    unknown: "License not recorded",
+    app: "Part of this app",
+  };
+  const OLD_WARNING = "Old book: the skill is useful, the safety rules are not. For canning and food safety, use the USDA 2015 guide.";
+
+  let catalog = null;       // array of entries, or null when it failed to load
+  let catalogError = null;  // the error message when it failed
+  let seq = 0;              // route counter, so a slow load never paints over a newer route
+  let loadedSlug = null;    // the converted manual now shown in the reader
+  let checked = null;       // promise: the "what is on this Mac" check, run once per page
+  let plantsHere = false;   // the plant data is on this Mac
+  let zimsHere = 0;         // how many wiki collections (zim files) are on this Mac
+
+  async function loadCatalog() {
+    if (!catalog && !catalogError) {
+      try {
+        const data = await UI.getJSON("/learn/catalog.json");
+        if (!Array.isArray(data)) throw new Error("/learn/catalog.json is not a list");
+        catalog = data;
+      } catch (e) {
+        catalogError = e && e.message ? e.message : String(e);
+      }
+    }
+    if (catalog) {
+      if (!checked) { chrome("page"); view.innerHTML = `<div class="stack"><p class="empty">Checking what is on this Mac…</p></div>`; }
+      await checkHave();
+    }
+  }
+
+  // Each entry gets entry.have: true when it can open on this Mac. Done once for the life of the page.
+  function checkHave() {
+    if (!checked) checked = (async () => {
+      const [plants, zims] = await Promise.all([UI.exists("/plants/plants.json"), zimCountNow()]);
+      plantsHere = plants;
+      zimsHere = zims;
+      await Promise.all(catalog.map(async e => { e.have = await haveOne(e, plants, zims); }));
+    })();
+    return checked;
+  }
+  async function zimCountNow() {
+    try {
+      const m = await UI.getJSON("/api/manifest");
+      return Array.isArray(m.zims) ? m.zims.length : 0;
+    } catch {
+      return 0;
+    }
+  }
+  async function haveOne(e, plants, zims) {
+    if (e.md === true) return true;
+    if (e.kind === "app") return plants;                                   // Plants: needs its data
+    if (e.kind === "wiki" || String(e.route || "").startsWith("wiki/")) return zims > 0;
+    if (e.kind === "guide" || e.route) return true;
+    if (e.pdf) return UI.exists(e.pdf);
+    return false;
+  }
+
+  // ----- entry kinds -----
+  const hidden = e => e.kind === "app" || e.kind === "wiki";          // plants and Appropedia: doors only
+  const isGuide = e => !hidden(e) && (e.kind === "guide" || e.md === true);
+  const isManual = e => !hidden(e) && !e.md && !!e.pdf;
+  const routeOf = e => e.route || ("learn/" + e.slug);
+  const topicEntries = id => catalog.filter(e => e.topic === id && !hidden(e));
+  const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
+  const pubLine = e => [e.publisher, e.year].filter(x => x != null && x !== "").join(" · ");
+  const sizeText = mb => (mb < 1 ? mb.toFixed(1) : String(Math.round(mb))) + " MB";
+  const licWord = e => LIC[e.license] || LIC.unknown;
+
+  // ----- navigation: a screen asks the shell. Outside the shell, the hash is used directly. -----
+  const goR = r => { if (UI.inShell()) UI.go(r); else location.hash = r.replace(/^learn\//, ""); };
+  const goLearn = () => { if (UI.inShell()) UI.go("learn"); else location.hash = ""; };
+  const goTopic = id => goR("learn/topic-" + id);
+  const backFor = e => (e && e.topic ? () => goTopic(e.topic) : goLearn);
+
+  // Delegated: any [data-go] button in the view goes to its route.
+  view.addEventListener("click", ev => {
+    const g = ev.target.closest("[data-go]");
+    if (g) goR(g.dataset.go);
+  });
+
+  // ----- router -----
+  // "" home, "topic-<id>", "plants", "guide-<id>", "<slug>", "<slug>/<section>", "<slug>?page=<n>"
+  UI.onRoute(async rest => {
+    const mine = ++seq;
+    if (rest === "") { await loadCatalog(); if (mine !== seq) return; showHome(); return; }
+    if (rest === "more") { await loadCatalog(); if (mine !== seq) return; showMore(); return; }
+    if (rest === "plants" || rest.startsWith("plants?")) {
+      const q = new URLSearchParams(rest.slice(rest.indexOf("?") + 1)).get("q");
+      frameView("Plants", "/hub/plants.html" + (q ? "#q=" + encodeURIComponent(q) : ""), "Plants");
+      return;
+    }
+    if (rest.startsWith("guide-")) {
+      frameView("Guide", "/hub/guides.html#" + encodeURIComponent(rest.slice(6)), "Guide");
+      return;
+    }
+    await loadCatalog();
+    if (mine !== seq) return;
+    if (rest.startsWith("topic-")) { showTopic(rest.slice(6)); return; }
+    const q = rest.indexOf("?");
+    const path = q < 0 ? rest : rest.slice(0, q);
+    const page = q < 0 ? null : new URLSearchParams(rest.slice(q + 1)).get("page");
+    const cut = path.indexOf("/");
+    const slug = cut < 0 ? path : path.slice(0, cut);
+    const sec = cut < 0 ? "" : path.slice(cut + 1);
+    await showDoc(slug, sec, page, mine);
+  });
+
+  function chrome(kind) {
+    loadedSlug = null;
+    document.body.className = kind === "doc" ? "" : "topo";
+    view.className = kind === "doc" ? "" : "page";
+  }
+
+  // ----- home: eight doors -----
+  function doorCount(d) {
+    if (!catalog) return "";
+    if (!d.topic) {
+      if (d.go === "learn/plants") return plantsHere ? "Plant database" : "Not on this Mac";
+      return zimsHere > 0 ? "Collections, offline" : "No collections on this Mac";
+    }
+    const items = topicEntries(d.topic).filter(e => e.have);
+    const g = items.filter(isGuide).length, m = items.filter(isManual).length;
+    const parts = [];
+    if (g) parts.push(plural(g, "guide"));
+    if (m) parts.push(plural(m, "manual"));
+    return parts.join(", ") || "Nothing on this Mac yet";
+  }
+  function doorCard(d) {
+    return `<button type="button" class="card noprint" data-go="${esc(d.go || "learn/topic-" + d.topic)}">
+      <span class="door-title">${esc(d.label)}</span>
+      <span class="why">${esc(d.line)}</span>
+      <span class="small muted">${esc(doorCount(d))}</span>
+    </button>`;
+  }
+  function showHome() {
+    chrome("page");
+    const banner = catalogError
+      ? `<div class="banner" role="status">The library list could not be loaded in this copy. Rebuild the library index and reload this screen. (${esc(catalogError)})</div>`
+      : "";
+    const missingCount = catalog ? catalog.filter(e => !e.have).length : 0;
+    view.innerHTML = `<div class="stack">
+      <header class="stack intro">
+        <h1>Learn</h1>
+        <p class="muted">Pick a problem.</p>
+        ${catalog ? `<p class="muted">Showing what is on this Mac.</p>` : ""}
+        ${missingCount ? `<div class="row">
+          <span class="muted">${missingCount === 1 ? "1 more title" : missingCount + " more titles"} can be added.</span>
+          <button type="button" class="btn ghost noprint" data-go="learn/more">See what can be added</button>
+        </div>` : ""}
+      </header>
+      ${banner}
+      <div class="grid">${DOORS.map(doorCard).join("")}</div>
+    </div>`;
+  }
+
+  // ----- topic page: quick guides, manuals, go deeper -----
+  function guideCard(e) {
+    return `<button type="button" class="card noprint" data-go="${esc(routeOf(e))}">
+      <span class="ct">${esc(e.title)}</span>
+      <span class="why">${esc(e.why)}</span>
+      <span class="small muted">${esc(pubLine(e))}</span>
+    </button>`;
+  }
+  function manualRow(e) {
+    const extra = [];
+    if (e.old_safety_rules) extra.push(`<span class="pill bad">Old safety rules</span>`);
+    if (e.scanned) extra.push(`<span class="small muted">Scan, not searchable</span>`);
+    return `<button type="button" class="card noprint" data-go="${esc(routeOf(e))}">
+      <span class="ct">${esc(e.title)}</span>
+      <span class="small muted">${esc(pubLine(e))}</span>
+      <span class="why">${esc(e.why)}</span>
+      ${extra.length ? `<span class="row">${extra.join("")}</span>` : ""}
+    </button>`;
+  }
+  function shelf(id, title, line, body) {
+    return `<section class="stack" aria-labelledby="${id}">
+      <div><h2 id="${id}">${esc(title)}</h2><p class="sect-note">${esc(line)}</p></div>
+      ${body}
+    </section>`;
+  }
+  function deeperFor(id) {
+    const out = [];
+    if (DEEPER[id]) out.push({ label: DEEPER[id].label, go: "wiki/search?pattern=" + encodeURIComponent(DEEPER[id].search) });
+    if (id === "howto") {
+      const ap = catalog.find(x => x.slug === "appropedia" && x.route);
+      if (ap) out.push({ label: "Open Appropedia: thousands of build-it projects", go: ap.route });
+    }
+    return out;
+  }
+  function showTopic(id) {
+    chrome("page");
+    if (catalogError) return message("The library list could not be loaded", `Rebuild the library index and reload. (${esc(catalogError)})`);
+    const door = DOORS.find(d => d.topic === id);
+    if (!door) return message("Not in this copy", `There is no topic called "${esc(id)}".`);
+    const items = topicEntries(id);
+    const guides = items.filter(e => isGuide(e) && e.have);
+    const manuals = items.filter(e => isManual(e) && e.have);
+    const missing = items.filter(e => isManual(e) && !e.have);
+    const deeper = deeperFor(id);
+    const none = !guides.length && !manuals.length && !deeper.length;
+    view.innerHTML = `<div class="stack">
+      <div class="row"><button type="button" class="btn ghost noprint" data-back>Back to Learn</button></div>
+      <h1>${esc(door.label)}</h1>
+      ${guides.length ? shelf("sh-guides", "Quick guides", "Short and visual. Start here.", `<div class="grid">${guides.map(guideCard).join("")}</div>`) : ""}
+      ${manuals.length ? shelf("sh-manuals", "Manuals", "Full books. Search finds the exact page.", `<div class="stack">${manuals.map(manualRow).join("")}</div>`) : ""}
+      ${deeper.length ? shelf("sh-deeper", "Go deeper", "Big reference collections in the wiki library.",
+        `<div class="deeper">${deeper.map(d => `<button type="button" class="btn ghost noprint" data-go="${esc(d.go)}">${esc(d.label)}</button>`).join("")}</div>`) : ""}
+      ${missing.length ? shelf("sh-missing", "Not on this Mac yet", "Add the PDF and rebuild to read it here.",
+        `<div class="stack">${missing.map(missingTopicRow).join("")}</div>`) : ""}
+      ${none ? `<p class="empty">Nothing on this Mac for this topic yet.</p>` : ""}
+    </div>`;
+    view.querySelector("[data-back]").addEventListener("click", goLearn);
+  }
+
+  // ----- plants and guides: a full-screen frame with a bar on top -----
+  function frameView(title, src, label) {
+    chrome("doc");
+    view.innerHTML = `<div class="frame-page">
+      <div class="frame-bar noprint">
+        <button type="button" class="btn ghost noprint" data-back>Back to Learn</button>
+        <span class="ttl">${esc(title)}</span>
+      </div>
+      <iframe title="${esc(label)}" src="${esc(src)}"></iframe>
+    </div>`;
+    view.querySelector("[data-back]").addEventListener("click", goLearn);
+  }
+
+  // A plain row (not a button) for a title that is not on this Mac, with publisher and year muted.
+  function missingTopicRow(e) {
+    return `<div class="card">
+      <span class="ct">${esc(e.title)}</span>
+      <span class="small muted">${esc(pubLine(e))}</span>
+      ${e.source_url ? `<span class="small muted">Source: ${esc(e.source_url)}</span>` : ""}
+    </div>`;
+  }
+
+  // ----- what can be added: every entry whose file is not on this Mac -----
+  function missingRow(e) {
+    const extra = e.source_url ? ["Source: " + esc(e.source_url)] : [];
+    return `<div class="card">
+      <span class="ct">${esc(e.title)}</span>
+      ${metaBlock(e, extra)}
+    </div>`;
+  }
+  function showMore() {
+    chrome("page");
+    const missing = catalog.filter(e => !e.have);
+    const groups = DOORS.filter(d => d.topic).map(d => ({ label: d.label, items: missing.filter(e => e.topic === d.topic) }));
+    const known = new Set(DOORS.map(d => d.topic));
+    const other = missing.filter(e => !known.has(e.topic));
+    if (other.length) groups.push({ label: "Other", items: other });
+    const body = groups.filter(g => g.items.length)
+      .map(g => `<section class="stack"><h2>${esc(g.label)}</h2>${g.items.map(missingRow).join("")}</section>`).join("");
+    view.innerHTML = `<div class="stack">
+      <div class="row"><button type="button" class="btn ghost noprint" data-back>Back to Learn</button></div>
+      <h1>What can be added</h1>
+      <p class="sect-note">These are in the catalog but the files are not on this Mac. Public domain titles can be downloaded from their publisher. Put the PDF in the folder the catalog names and rebuild.</p>
+      ${missing.length ? body : `<p class="empty">Everything in the catalog is on this Mac.</p>`}
+    </div>`;
+    view.querySelector("[data-back]").addEventListener("click", goLearn);
+  }
+
+  // ----- one document: converted reader, PDF view, or a clear message -----
+  async function showDoc(slug, sec, page, mine) {
+    if (catalogError) return message("The library list could not be loaded", `Rebuild the library index and reload. (${esc(catalogError)})`);
+    const e = catalog.find(x => x.slug === slug);
+    if (!e) return notInCopy(slug);
+    if (e.md) {
+      if (loadedSlug !== slug) {
+        chrome("doc");
+        await renderReader(e, mine);
+        if (mine !== seq) return;
+      }
+      scrollToSection(sec);
+      return;
+    }
+    if (e.pdf) { chrome("doc"); return showPdf(e, page, mine); }
+    return routeOnly(e);
+  }
+
+  function notInCopy(slug) {
+    chrome("page");
+    view.innerHTML = `<div class="stack">
+      <h1>Not in this copy</h1>
+      <p>There is no item called "${esc(slug)}" in this copy of the library.</p>
+      <div class="row"><button type="button" class="btn noprint" data-back>Back to Learn</button></div>
+    </div>`;
+    view.querySelector("[data-back]").addEventListener("click", goLearn);
+  }
+
+  function message(title, body) {
+    chrome("page");
+    view.innerHTML = `<div class="stack"><h1>${esc(title)}</h1><p>${body}</p>
+      <div class="row"><button type="button" class="btn noprint" data-back>Back to Learn</button></div></div>`;
+    view.querySelector("[data-back]").addEventListener("click", goLearn);
+  }
+
+  // Muted block under the title: publisher, year, license in words, license note, file size.
+  function metaBlock(e, extra = []) {
+    const rows = [];
+    if (pubLine(e)) rows.push(esc(pubLine(e)));
+    rows.push("License: " + esc(licWord(e)));
+    if (e.license_note) rows.push(esc(e.license_note));
+    if (typeof e.mb === "number") rows.push("File size: " + esc(sizeText(e.mb)));
+    extra.forEach(r => rows.push(r));
+    return `<div class="meta-lines">${rows.map(r => `<span>${r}</span>`).join("")}</div>`;
+  }
+
+  async function showPdf(e, page, mine) {
+    const hasPdf = await UI.exists(e.pdf);
+    if (mine !== seq) return;
+    const n = page && /^\d+$/.test(page) ? page : "";
+    const src = n ? e.pdf + "#page=" + n : e.pdf;
+    const link = hasPdf ? `<a class="btn ghost noprint" href="${esc(e.pdf)}" target="_blank" rel="noopener">Open original PDF</a>` : "";
+    const head = `<div class="doc-head">
+        <h1>${esc(e.title)}</h1>
+        ${metaBlock(e)}
+        ${e.old_safety_rules ? `<div class="banner" role="note">${esc(OLD_WARNING)}</div>` : ""}
+        ${e.scanned ? `<p class="note" role="note">This book is a scan with no searchable text.</p>` : ""}
+        ${n ? `<p class="opened" role="status">Opened at page ${esc(n)}.</p>` : ""}
+      </div>`;
+    view.innerHTML = `<div class="frame-page">
+      <div class="frame-bar noprint">
+        <button type="button" class="btn ghost noprint" data-back>Back</button>
+        <span class="ttl">${esc(e.title)}</span>
+        <button type="button" class="btn ghost noprint" data-print>Print</button>
+        ${link}
+      </div>
+      ${head}
+      ${hasPdf
+        ? `<iframe title="${esc(e.title)}" src="${esc(src)}"></iframe>`
+        : `<div class="stack"><p class="empty">This file is not on this Mac.</p>
+          <div class="row"><button type="button" class="btn noprint" data-go="learn/more">See what can be added</button></div></div>`}
+    </div>`;
+    view.querySelector("[data-back]").addEventListener("click", backFor(e));
+    view.querySelector("[data-print]").addEventListener("click", () => window.print());
+  }
+
+  function routeOnly(e) {
+    chrome("page");
+    view.innerHTML = `<div class="stack">
+      <h1>${esc(e.title)}</h1>
+      ${metaBlock(e)}
+      <p>${esc(e.why)}</p>
+      <div class="row">
+        <button type="button" class="btn noprint" data-open>Open</button>
+        <button type="button" class="btn ghost noprint" data-back>Back</button>
+      </div>
+    </div>`;
+    view.querySelector("[data-open]").addEventListener("click", () => goR(routeOf(e)));
+    view.querySelector("[data-back]").addEventListener("click", backFor(e));
+  }
+
+  async function renderReader(e, mine) {
+    view.innerHTML = `<div class="page"><p class="empty">Opening ${esc(e.title)}...</p></div>`;
+    let src;
+    try {
+      src = await UI.getText(`/learn/${e.slug}/index.md`);
+    } catch (err) {
+      if (mine === seq) message("This manual did not open", esc(err.message));
+      return;
+    }
+    if (mine !== seq) return;
+    const hasPdf = e.pdf ? await UI.exists(e.pdf) : false;
+    if (mine !== seq) return;
+
+    const split = MD.split(src);
+    const { html, toc } = MD.render(split.body, { base: `/learn/${e.slug}/` });
+    const meta = split.meta || {};
+    const topicLabel = (DOORS.find(d => d.topic === e.topic) || { label: "Learn" }).label;
+    const contents = toc.filter(t => t.level <= 3)
+      .map(t => `<button type="button" class="l${t.level} noprint" data-id="${esc(t.id)}">${esc(t.text)}</button>`).join("");
+    const extra = meta.source_url ? ["Source: " + esc(meta.source_url)] : [];
+
+    view.innerHTML = `
+      <div class="reader">
+        <nav class="toc noprint" aria-label="Contents">
+          <p class="eyebrow">Contents</p>
+          ${contents || `<p class="small muted">No headings.</p>`}
+        </nav>
+        <div class="rmain">
+          <div class="rbar noprint">
+            <button type="button" class="btn ghost noprint" data-back>Back to ${esc(topicLabel)}</button>
+            <span class="ttl">${esc(e.title)}</span>
+            <button type="button" class="btn ghost noprint" data-print>Print</button>
+            ${hasPdf ? `<a class="btn ghost noprint" href="${esc(e.pdf)}" target="_blank" rel="noopener">Open original PDF</a>` : ""}
+          </div>
+          <div class="rdoc">
+            <header>
+              <h1>${esc(e.title)}</h1>
+              ${metaBlock(e, extra)}
+              ${e.old_safety_rules ? `<div class="banner" role="note">${esc(OLD_WARNING)}</div>` : ""}
+            </header>
+            <article class="prose">${html}</article>
+          </div>
+        </div>
+      </div>`;
+
+    if (hasPdf) {
+      view.querySelectorAll(".prose .pageref").forEach(s => {
+        const n = esc(s.dataset.page);
+        s.innerHTML = `page ${n} <span class="noprint">· <button type="button" class="linkbtn noprint" data-page="${n}">view original</button></span>`;
+      });
+    }
+    view.querySelector("[data-back]").addEventListener("click", backFor(e));
+    view.querySelector("[data-print]").addEventListener("click", () => window.print());
+    view.querySelector(".toc").addEventListener("click", ev => {
+      const b = ev.target.closest("button[data-id]");
+      if (!b) return;
+      goR("learn/" + e.slug + "/" + b.dataset.id);
+      scrollToSection(b.dataset.id);
+    });
+    view.querySelector(".prose").addEventListener("click", ev => {
+      const b = ev.target.closest("button[data-page]");
+      if (b) openPdfAt(e, b.dataset.page);
+    });
+    loadedSlug = e.slug;
+  }
+
+  function scrollToSection(id) {
+    if (!id) { window.scrollTo(0, 0); return; }
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 1600);
+  }
+
+  // The "view original" dialog: the PDF opened at a page
+  function openPdfAt(e, page) {
+    let d = document.getElementById("pdfDlg");
+    if (!d) {
+      d = document.createElement("dialog");
+      d.id = "pdfDlg";
+      d.className = "noprint pdfdlg";
+      d.innerHTML = `<div class="spread"><b id="pdfTitle"></b><button type="button" class="btn ghost" data-close>Close</button></div>
+        <iframe id="pdfFrame" title="Original PDF"></iframe>`;
+      d.addEventListener("click", ev => { if (ev.target.closest("[data-close]") || ev.target === d) d.close(); });
+      document.body.append(d);
+    }
+    d.querySelector("#pdfTitle").textContent = e.title + ", page " + page;
+    d.querySelector("#pdfFrame").src = e.pdf + "#page=" + encodeURIComponent(page);
+    if (!d.open) d.showModal();
+  }
+})();
+</script>
+</body>
+</html>

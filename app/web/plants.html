@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plant Guide</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 22px 30px 60px; display: flex; flex-direction: column; gap: 14px; }
+.toolbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 10px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar input[type=search] { flex: 1 1 260px; }
+.toolbar label.row { font-size: var(--t-sm); cursor: pointer; }
+.toolbar .chip { padding: 6px 12px; font-size: var(--t-sm); }
+.grid-plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.p { cursor: pointer; }
+.p:hover { border-color: var(--ink2); }
+.p h3 { font-size: var(--t-md); }
+.lat { color: var(--muted); font-style: italic; font-size: var(--t-sm); }
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.meter-row { display: grid; grid-template-columns: 80px 1fr 28px; align-items: center; gap: 8px; font-size: var(--t-sm); color: var(--ink2); }
+.meter-row b { color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+.snip { font-size: var(--t-sm); color: var(--ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.legend { display: flex; gap: 16px; font-size: var(--t-sm); color: var(--ink2); }
+.legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+.more { text-align: center; }
+dialog .hz { border-left: 4px solid var(--crit); background: var(--crit-bg); padding: 8px 12px; border-radius: var(--r); }
+dialog h4 { margin: 14px 0 4px; font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+dialog p { margin: 0; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+.facts div { background: var(--bg); border-radius: var(--r); padding: 6px 10px; font-size: var(--t-sm); }
+.facts small { display: block; color: var(--muted); font-size: var(--t-xs); }
+.src { color: var(--muted); font-size: var(--t-xs); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Plant guide</h1>
+<p class="muted">About 6,000 edible and medicinal plants from the Plants For A Future database. Ratings run 0 to 5.</p>
+<div class="banner"><b>⚠ Never eat a wild plant on a guess.</b> Be 100% sure of the ID, check the hazards box, and start with a small amount. Many safe plants have deadly look-alikes.</div>
+<div class="toolbar">
+  <label class="sr-only" for="q">Search a name or use</label>
+  <input type="search" id="q" placeholder="Search a name or use, e.g. acorn, fever, tea, cattail">
+  <div class="row" role="group" aria-label="Show" id="mode"><button class="chip" type="button" data-m="all" aria-pressed="true">All</button><button class="chip" type="button" data-m="eat" aria-pressed="false">Food</button><button class="chip" type="button" data-m="med" aria-pressed="false">Medicine</button></div>
+  <label class="sr-only" for="habit">Plant type</label>
+  <select id="habit"><option value="">Any type</option></select>
+  <label class="row"><input type="checkbox" id="zone" checked> Grows in zone 8</label>
+  <label class="row"><input type="checkbox" id="na"> North America only</label>
+  <label class="row"><input type="checkbox" id="safe"> Hide plants with hazards</label>
+</div>
+<div class="grid" id="stats"></div>
+<div class="legend"><span style="--c:var(--bar)">Food rating</span><span style="--c:var(--info)">Medicine rating</span></div>
+<div class="grid-plants" id="list" aria-live="polite"></div>
+<div class="more"><button class="btn ghost" id="more" type="button">Show more</button></div>
+<p class="src">Source: Plants For A Future (pfaf.org), personal use only. Ratings and uses are PFAF's, not medical advice. Numbers in brackets are PFAF's reference IDs.</p>
+</div>
+<dialog id="dlg" aria-label="Plant details">
+  <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="dlgX" type="button">Close</button></div>
+  <div id="dlgIn" class="stack"></div>
+</dialog>
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script>
+"use strict";
+const $ = UI.$, esc = UI.esc;
+const clean = s => String(s ?? "").replace(/\[[\dKk, ]+\]/g, "").replace(/\s+([.,])/g, "$1");
+let ALL = [], view = [], shown = 0, mode = "all";
+const z8 = p => { const m = /(\d+)\s*-\s*(\d+)/.exec(p.z || ""); return m ? +m[1] <= 8 && 8 <= +m[2] : false; };
+const hasHaz = p => p.k && !/^\s*(none known|none)\b/i.test(p.k);
+// one rating as a bar: the value is printed beside it
+function meter(label, v, color) {
+  const n = Math.max(0, Math.min(5, +v || 0));
+  return `<div class="meter-row"><span>${esc(label)}</span><div class="meter" aria-hidden="true"><span style="width:${n / 5 * 100}%;background:${color}"></span></div><b>${v ?? 0}</b></div>`;
+}
+function card(p, i) {
+  const tags = [p.h, p.z ? "Zones " + p.z : "", p.tx ? "N. America" : ""].filter(Boolean).map(t => `<span class="pill${t === "N. America" ? " info" : ""}">${esc(t)}</span>`).join("")
+    + (hasHaz(p) ? `<span class="pill bad">⚠ Hazards</span>` : "");
+  const snip = clean(mode === "med" ? p.mu : p.eu || p.mu);
+  return `<div class="card p" role="button" tabindex="0" data-i="${i}"><h3>${esc(p.c || p.l)}</h3><div class="lat">${esc(p.l)}${p.f ? " · " + esc(p.f) : ""}</div>
+    <div class="tags">${tags}</div>${meter("Food", p.er, "var(--bar)")}${meter("Medicine", p.mr, "var(--info)")}<div class="snip">${esc(snip)}</div></div>`;
+}
+function apply() {
+  const zone = $("#zone").checked, q = $("#q").value.trim().toLowerCase(), h = $("#habit").value, na = $("#na").checked, safe = $("#safe").checked;
+  view = ALL.filter(p => (!zone || z8(p)) && (!na || p.tx) && (!h || p.h === h) && (!safe || !hasHaz(p))
+    && (mode !== "eat" || p.er >= 3) && (mode !== "med" || p.mr >= 3)
+    && (!q || [p.c, p.l, p.eu, p.mu, p.ou].some(t => t && t.toLowerCase().includes(q))));
+  const key = mode === "med" ? "mr" : "er";
+  view.sort((a, b) => (b[key] || 0) - (a[key] || 0) || (b.er + b.mr) - (a.er + a.mr));
+  $("#stats").innerHTML = [[view.length.toLocaleString(), "plants match"], [view.filter(p => p.er >= 4).length.toLocaleString(), "top food plants (4 to 5)"],
+    [view.filter(p => p.mr >= 4).length.toLocaleString(), "top medicine plants (4 to 5)"], [view.filter(hasHaz).length.toLocaleString(), "have hazard notes"]]
+    .map(([b, l]) => `<div class="tile"><b>${b}</b><span>${l}</span></div>`).join("");
+  shown = 0; $("#list").innerHTML = ""; more();
+}
+function more() {
+  $("#list").insertAdjacentHTML("beforeend", view.slice(shown, shown + 60).map((p, j) => card(p, shown + j)).join(""));
+  shown += 60; $("#more").hidden = shown >= view.length;
+}
+$("#more").onclick = more;
+$("#list").onclick = e => {
+  const c = e.target.closest(".p"); if (!c) return; const p = view[+c.dataset.i];
+  const sec = (t, v, cls) => v ? `<h4>${t}</h4><p class="${cls || ""}">${esc(clean(v))}</p>` : "";
+  $("#dlgIn").innerHTML = `<h2>${esc(p.c || p.l)}</h2><div class="lat">${esc(p.l)} · ${esc(p.f || "")}</div>
+    ${meter("Food", p.er, "var(--bar)")}${meter("Medicine", p.mr, "var(--info)")}
+    ${sec("⚠ Known hazards", p.k, "hz")}${sec("Edible uses", p.eu)}${sec("Medicinal uses", p.mu)}${sec("Other uses", p.ou)}
+    <div class="facts">${[["Type", p.h], ["Hardiness zones", p.z], ["Soil", p.s], ["Shade", p.sh], ["Moisture", p.m], ["Native range", p.na]].filter(x => x[1])
+      .map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join("")}</div>
+    <p class="src">The zone filter is USDA hardiness zone 8. Soil: L light, M medium, H heavy. Shade: F full, S semi, N none. Moisture: D dry, M moist, We wet, Wa water.</p>`;
+  $("#dlg").showModal();
+};
+$("#dlgX").onclick = () => $("#dlg").close();
+$("#mode").onclick = e => { const b = e.target.closest("button"); if (!b) return; mode = b.dataset.m;
+  document.querySelectorAll("#mode button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); apply(); };
+$("#q").oninput = UI.debounce(apply, 180);
+["#habit", "#na", "#safe", "#zone"].forEach(s => $(s).onchange = apply);
+
+// The address can carry a search: #plants/q=<text> fills the box and runs it.
+UI.onRoute(rest => {
+  const m = /^q=(.*)$/.exec(rest);
+  if (!m) return;
+  $("#q").value = m[1];
+  if (ALL.length) apply();
+});
+
+// Keyboard: Enter and Space press a card (role="button").
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches('[role="button"]')) { e.preventDefault(); e.target.click(); }
+});
+
+UI.getJSON("/plants/plants.json").then(d => {
+  ALL = d;
+  [...new Set(d.map(p => p.h).filter(Boolean))].sort().forEach(h => $("#habit").add(new Option(h, h)));
+  apply();
+}).catch(() => { $("#list").innerHTML = '<div class="banner">The plant data isn\'t in this copy of the app.</div>'; $("#more").hidden = true; });
+</script>
+</body>
+</html>

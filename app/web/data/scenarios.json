@@ -1,0 +1,566 @@
+[
+  {
+    "id": "power",
+    "title": "Power out",
+    "steps": [
+      "Check if it's just you. Report it to the utility.",
+      "Keep the fridge and freezer closed. Fridge food is safe about 4 hours, a full freezer about 48.",
+      "Generator outside only, at least 20 ft from doors and windows.",
+      "Unplug electronics. Follow your plan's first-2-hours checklist."
+    ],
+    "source": "Ready.gov, USDA FSIS",
+    "keywords": "outage blackout electricity generator",
+    "more": [
+      {
+        "label": "Power outage sheet",
+        "route": "learn/ready-power-outage"
+      },
+      {
+        "label": "Power guide",
+        "route": "learn/guide-power"
+      },
+      {
+        "label": "Food guide",
+        "route": "learn/guide-food"
+      },
+      {
+        "label": "Supplies calculator",
+        "route": "place/calc"
+      }
+    ],
+    "detail": [
+      {
+        "title": "0 to 2 hours: Lock in water",
+        "items": [
+          "Confirm it's not just you",
+          "Fill tubs and every pot while pressure lasts",
+          "Fridge and freezer stay shut",
+          "Unplug electronics",
+          "NOAA radio on"
+        ]
+      },
+      {
+        "title": "2 to 24 hours: Set up camp",
+        "items": [
+          "Solar up: freezer and a fan first",
+          "Bucket toilet and hand-wash",
+          "Start filtering water",
+          "Eat fridge food first",
+          "Check older neighbors"
+        ]
+      },
+      {
+        "title": "Days 2 to 3: Go on schedule",
+        "items": [
+          "Count water every day",
+          "Inventory sheet started",
+          "Roles assigned"
+        ]
+      },
+      {
+        "title": "Weeks 1 to 2: Steady state",
+        "items": [
+          "Freezer food, then pantry",
+          "Rain catch and treat",
+          "Neighbor network on radio",
+          "Fix what broke"
+        ]
+      },
+      {
+        "title": "Weeks 3 to 13: Long haul",
+        "items": [
+          "Pantry staples (rice, dal, oil)",
+          "Garden and barter",
+          "Weekly drills of your exit plan",
+          "Watch the leave-now signs"
+        ]
+      }
+    ],
+    "records": {
+      "types": [
+        "equipment"
+      ],
+      "kinds": [
+        "breaker panel"
+      ],
+      "categories": []
+    },
+    "runway": true,
+    "layers": [
+      "hospitals",
+      "pharmacies"
+    ],
+    "empty": "Add your generators and batteries in My Place (type: Equipment), and the breaker panel as a Place.",
+    "from": "emergency.html lines 87 (steps, source); visual.html lines 127-143 (outage timeline detail)"
+  },
+  {
+    "id": "tornado",
+    "title": "Tornado warning",
+    "steps": [
+      "Go to the lowest floor, an interior room with no windows (closet, bathroom, under stairs).",
+      "Get under something sturdy. Cover your head and neck with arms, a mattress or helmets.",
+      "In a car or mobile home: get out to a sturdy building. Last resort: a low ditch, covering your head.",
+      "Stay there until the warning expires. Then watch for downed lines and gas smells."
+    ],
+    "source": "NWS Fort Worth, NOAA radio",
+    "keywords": "storm twister safe room",
+    "more": [
+      {
+        "label": "Tornado sheet",
+        "route": "learn/ready-tornado"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [],
+      "kinds": [
+        "tornado safe room",
+        "meeting point"
+      ],
+      "categories": []
+    },
+    "runway": false,
+    "layers": [
+      "shelters",
+      "hospitals"
+    ],
+    "empty": "Add your tornado safe room in My Place (type: Shelter, kind: tornado safe room).",
+    "from": "emergency.html line 85"
+  },
+  {
+    "id": "flood",
+    "title": "Flash flood",
+    "steps": [
+      "Move to higher ground now. Don't wait for an order.",
+      "Turn around, don't drown: 6 inches of moving water knocks you down, 12 inches floats a car.",
+      "Never drive into water over a road or through an underpass.",
+      "If trapped in a building, go to the highest floor. Only go on the roof if water keeps rising. Don't climb into a closed attic."
+    ],
+    "source": "NWS, Ready.gov",
+    "keywords": "water river creek rain",
+    "more": [
+      {
+        "label": "Flood sheet",
+        "route": "learn/ready-flood"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [
+        "route"
+      ],
+      "kinds": [
+        "flood spot"
+      ],
+      "categories": []
+    },
+    "runway": false,
+    "layers": [
+      "shelters",
+      "hospitals"
+    ],
+    "empty": "Add your routes and flood spots in My Place (type: Route, or Place kind: flood spot).",
+    "from": "emergency.html line 86"
+  },
+  {
+    "id": "heat",
+    "title": "Extreme heat",
+    "steps": [
+      "Get everyone into the coolest room. Close sun-facing blinds.",
+      "Drink water often. Wet cloths on the neck and wrists, fan if possible.",
+      "Check older people, kids and pets every hour.",
+      "Heat stroke (confused, 103°F+, hot skin) is an emergency: cool them fast."
+    ],
+    "source": "CDC",
+    "keywords": "hot temperature AC heat stroke",
+    "more": [
+      {
+        "label": "Extreme heat sheet",
+        "route": "learn/ready-extreme-heat"
+      },
+      {
+        "label": "Supplies calculator",
+        "route": "place/calc"
+      }
+    ],
+    "detail": [
+      {
+        "title": "Heat exhaustion: signs",
+        "items": [
+          "Heavy sweating",
+          "Cool, pale, clammy skin",
+          "Fast, weak pulse",
+          "Nausea, dizziness, cramps, headache"
+        ],
+        "tone": "warn"
+      },
+      {
+        "title": "Heat exhaustion: do",
+        "items": [
+          "Move to the coolest spot",
+          "Loosen clothes, wet cloths on skin",
+          "Sip water",
+          "Worse, or no better in 1 hour: treat as heat stroke"
+        ],
+        "tone": "warn"
+      },
+      {
+        "title": "Heat stroke: signs",
+        "items": [
+          "Body temp 103°F or higher",
+          "Hot, red skin (dry or damp)",
+          "Fast, strong pulse",
+          "Confusion, slurred speech, passing out"
+        ],
+        "tone": "crit"
+      },
+      {
+        "title": "Heat stroke: do",
+        "items": [
+          "Get help if any is reachable",
+          "Cool them fast: cold water, ice packs to neck, armpits, groin, fan them",
+          "No drinks if they're confused"
+        ],
+        "tone": "crit"
+      }
+    ],
+    "records": {
+      "types": [
+        "water_container"
+      ],
+      "kinds": [
+        "cooling center"
+      ],
+      "categories": []
+    },
+    "runway": true,
+    "layers": [
+      "shelters",
+      "drinking_water"
+    ],
+    "empty": "Add a cooling center in My Place (type: Shelter, kind: cooling center).",
+    "from": "emergency.html line 88 (steps, source); visual.html lines 231-243 (heat illness detail)"
+  },
+  {
+    "id": "freeze",
+    "title": "Hard freeze",
+    "steps": [
+      "Everyone in one warm room. Close off the rest of the house.",
+      "Never use a grill, camp stove or generator indoors (carbon monoxide).",
+      "Drip faucets. Know where the main water shutoff is in case a pipe bursts.",
+      "Dress in layers, hats on, warm sweet drinks for anyone shivering."
+    ],
+    "source": "CDC, Ready.gov",
+    "keywords": "cold snow ice pipes heat carbon monoxide",
+    "more": [
+      {
+        "label": "Winter storm sheet",
+        "route": "learn/ready-winter-storm"
+      },
+      {
+        "label": "Water guide",
+        "route": "learn/guide-water"
+      }
+    ],
+    "detail": [
+      {
+        "title": "Hypothermia",
+        "items": [
+          "Shivering, clumsy hands, slurred words",
+          "Get everyone into one warm room",
+          "Dry clothes, blankets, hats, warm sweet drinks if awake",
+          "Shivering stops while still cold: emergency"
+        ],
+        "tone": "warn"
+      },
+      {
+        "title": "Carbon monoxide",
+        "items": [
+          "No grill, camp stove, charcoal or generator indoors or in the garage",
+          "Generator at least 20 ft out, exhaust away from windows",
+          "Headache, nausea, confusion in several people: get outside now",
+          "Battery CO alarms in every sleeping area"
+        ],
+        "tone": "crit"
+      }
+    ],
+    "records": {
+      "types": [],
+      "kinds": [
+        "utility shutoff"
+      ],
+      "categories": [
+        "heater"
+      ]
+    },
+    "runway": false,
+    "layers": [
+      "shelters",
+      "fire"
+    ],
+    "empty": "Add the main water shutoff and your heaters in My Place.",
+    "from": "emergency.html line 89 (steps, source); visual.html lines 245-255 (cold and carbon monoxide detail)"
+  },
+  {
+    "id": "smoke",
+    "title": "Fire or smoke",
+    "steps": [
+      "Fire in the house: get out, stay out, call 911.",
+      "Wildfire smoke: stay inside, close windows, run a HEPA or box-fan filter.",
+      "Evacuation order: leave now with your go-bags. Don't wait to see the fire.",
+      "N95 masks help with smoke. Cloth masks don't."
+    ],
+    "source": "Ready.gov, EPA AirNow",
+    "keywords": "fire smoke wildfire air N95",
+    "more": [
+      {
+        "label": "Wildfire sheet",
+        "route": "learn/ready-wildfire"
+      },
+      {
+        "label": "Supplies calculator",
+        "route": "place/calc"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [],
+      "kinds": [
+        "exit",
+        "meeting point",
+        "clean-air center"
+      ],
+      "categories": []
+    },
+    "runway": false,
+    "layers": [
+      "shelters",
+      "hospitals",
+      "fire"
+    ],
+    "empty": "Add your exits and meeting point in My Place, and a clean-air center if you know one.",
+    "from": "emergency.html line 90 (steps, source)"
+  },
+  {
+    "id": "water",
+    "title": "Boil-water notice or no water",
+    "steps": [
+      "Boil notice: boil 1 minute (3 minutes above 6,500 feet), or use 8 drops of 6% bleach per gallon, wait 30 min.",
+      "Do-not-use notice: don't boil it (boiling can concentrate chemicals). Use stored water.",
+      "Shut the main valve if a line broke. Switch to your water ledger.",
+      "See Learn → Make water safe."
+    ],
+    "source": "EPA, your city utility",
+    "keywords": "water boil bleach filter drink tap",
+    "more": [
+      {
+        "label": "Make water safe",
+        "route": "learn/guide-purify"
+      },
+      {
+        "label": "Water guide",
+        "route": "learn/guide-water"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [
+        "water_container",
+        "water_source"
+      ],
+      "kinds": [
+        "utility shutoff"
+      ],
+      "categories": [
+        "drinking water",
+        "filters"
+      ]
+    },
+    "runway": true,
+    "layers": [
+      "drinking_water",
+      "springs"
+    ],
+    "empty": "Add your water shutoff in My Place with a photo",
+    "from": "emergency.html line 91 (steps, source)"
+  },
+  {
+    "id": "radiation",
+    "title": "Radiation or chemical release",
+    "steps": [
+      "Get inside. The nearest solid building. Go to the basement or the middle of the building, away from windows.",
+      "Stay inside. Close windows and doors. Turn off fans, AC and heat that pull in outside air. Stay put until officials say it's safe, usually at least 24 hours.",
+      "Stay tuned. NOAA weather radio, local AM/FM or TV. Follow official instructions over anything saved in this app."
+    ],
+    "source": "CDC \"Get Inside, Stay Inside, Stay Tuned\" (radiation emergencies)",
+    "keywords": "nuclear radiation chemical shelter in place",
+    "more": [
+      {
+        "label": "Nuclear detonation sheet",
+        "route": "learn/ready-nuclear-detonation"
+      },
+      {
+        "label": "Where to go sheet",
+        "route": "learn/cdc-radiation-where-to-go"
+      },
+      {
+        "label": "Shelter in place sheet",
+        "route": "learn/fema-shelter-in-place"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [
+        "contact"
+      ],
+      "kinds": [
+        "meeting point"
+      ],
+      "categories": []
+    },
+    "runway": false,
+    "layers": [
+      "shelters",
+      "hospitals"
+    ],
+    "empty": "Add a meeting point and your family contacts in My Place.",
+    "from": "emergency.html lines 46-50 (banner steps and source); the same text is in the banner at the top of now.html"
+  },
+  {
+    "id": "evac",
+    "title": "We need to leave",
+    "steps": [
+      "Grab go-bags, meds, IDs, phone chargers, pets.",
+      "Text your out-of-area contact where you're going.",
+      "Use your saved routes. Avoid low crossings.",
+      "Leave a note on the door: who, where, when."
+    ],
+    "source": "Your plan, Ready.gov",
+    "keywords": "evacuate leave go bags route",
+    "more": [
+      {
+        "label": "Supply checklist",
+        "route": "learn/ready-supply-checklist"
+      },
+      {
+        "label": "Radio guide",
+        "route": "learn/guide-radio"
+      },
+      {
+        "label": "Supplies calculator",
+        "route": "place/calc"
+      }
+    ],
+    "detail": [
+      {
+        "title": "Leave now if",
+        "items": [
+          "Fire, smoke or a gas smell",
+          "CO alarm plus headache, nausea or confusion",
+          "Heat stroke signs and cooling isn't working",
+          "Flooding in the house or street",
+          "Indoors above 90°F day and night with a child, elder or sick person",
+          "Indoors below 50°F and the heat plan failed",
+          "Water is out and no source in reach",
+          "A medicine runs out and nothing is open",
+          "Threats or looting you can't handle",
+          "Any official evacuation order"
+        ]
+      }
+    ],
+    "records": {
+      "types": [
+        "route",
+        "shelter",
+        "contact"
+      ],
+      "kinds": [
+        "meeting point"
+      ],
+      "categories": []
+    },
+    "runway": false,
+    "layers": [
+      "shelters",
+      "hospitals",
+      "fire"
+    ],
+    "empty": "Add a route, a shelter and your out-of-area contact in My Place.",
+    "from": "emergency.html line 92 (steps, source); visual.html lines 280-291 (leave now list detail)"
+  },
+  {
+    "id": "hurt",
+    "title": "Someone is hurt",
+    "steps": [
+      "M. Massive bleeding. Hard direct pressure. Limb spurting or soaking through: tourniquet 2 to 3 inches above the wound, tight until bleeding stops. Write the time on it.",
+      "A. Airway. Talking means the airway is open. If not: head tilt, chin lift. Unconscious and breathing: recovery position on their side.",
+      "R. Respiration. Watch the chest rise. Chest wound with air sucking in: cover it with plastic taped on 3 sides.",
+      "C. Circulation. Pale, cold, sweaty, fast pulse means shock. Lay flat, raise legs if no spine injury, keep warm. Not breathing: start CPR.",
+      "H. Hypothermia and head. Keep them warm even in mild weather. Watch for confusion, vomiting or unequal pupils after a head hit."
+    ],
+    "source": "Stop the Bleed and TCCC \"MARCH\" order",
+    "keywords": "injury bleeding first aid CPR medicine",
+    "more": [
+      {
+        "label": "First aid guide",
+        "route": "learn/guide-march"
+      },
+      {
+        "label": "Supplies calculator",
+        "route": "place/calc"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [],
+      "kinds": [
+        "first-aid kit",
+        "doctor or pharmacy"
+      ],
+      "categories": [
+        "first aid",
+        "medication"
+      ]
+    },
+    "runway": false,
+    "layers": [
+      "hospitals",
+      "pharmacies",
+      "fire"
+    ],
+    "empty": "Add your first-aid kit and medicine supply in My Place, and your doctor or pharmacy as a Contact.",
+    "from": "visual.html lines 218-229 (MARCH cards, used as the steps)"
+  },
+  {
+    "id": "earthquake",
+    "title": "Earthquake",
+    "steps": [
+      "Drop, cover, hold on."
+    ],
+    "source": "Ready.gov earthquake information sheet",
+    "keywords": "quake shaking tremor",
+    "more": [
+      {
+        "label": "Earthquake sheet",
+        "route": "learn/ready-earthquake"
+      }
+    ],
+    "detail": [],
+    "records": {
+      "types": [
+        "contact"
+      ],
+      "kinds": [
+        "meeting point"
+      ],
+      "categories": []
+    },
+    "runway": false,
+    "layers": [
+      "hospitals",
+      "fire"
+    ],
+    "empty": "Add a meeting point and your family contacts in My Place.",
+    "from": "shelf.html line 210 (hazard card line, source is the Ready.gov earthquake sheet in BOOKS line 131)"
+  }
+]

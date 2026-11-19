@@ -1,0 +1,32 @@
+# Build output
+Apps/
+app/build/
+*.app
+*.dmg
+
+# Large third-party data
+/downloads/
+/packs/
+/vendor-dl/
+Apps/
+Offline Kit*/
+*.pmtiles
+*.zim
+*.pbf
+!app/web/map/fonts/**/*.pbf
+_archive/
+.handoff/
+
+# Local and private
+.venv/
+release-staging/
+research/
+plans/
+90-Day-Outage-Plan.md
+90-day-outage-plan.html
+Offline-Survival-Library.md
+
+# Python and macOS
+__pycache__/
+*.pyc
+.DS_Store

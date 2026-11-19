@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline check</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+/* Offline check: one verdict at the top, then one row per thing that was really opened and read. */
+.verdict { display: grid; grid-template-columns: 84px 1fr; gap: 16px; align-items: center; }
+.verdict .big { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font: 700 19px var(--mono); color: #fff; background: var(--muted); }
+.verdict.good .big { background: var(--good); } .verdict.warn .big { background: var(--warn); } .verdict.bad .big { background: var(--crit); }
+.segs { display: flex; gap: 3px; height: 12px; margin-top: 8px; }
+.segs i { flex: 1; border-radius: 3px; background: var(--track); }
+.segs i.good { background: var(--good); } .segs i.warn { background: var(--warn); } .segs i.bad { background: var(--crit); }
+.group h2 { margin: 0 0 6px; }
+.chk { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.chk:first-of-type { border-top: 0; }
+.chk .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--mono); color: #fff; background: var(--muted); }
+.chk.good .dot { background: var(--good); } .chk.warn .dot { background: var(--warn); } .chk.bad .dot { background: var(--crit); }
+.chk small { display: block; color: var(--muted); font-size: var(--t-sm); }
+</style>
+</head>
+<body class="topo">
+<div class="page">
+  <div>
+    <h1>Will it work with no internet?</h1>
+    <p class="muted">This opens the real files on this Mac: a map tile, a guide, the help layers and your records. Nothing is sent anywhere.</p>
+  </div>
+  <div class="card verdict" id="verdict" role="status" aria-live="polite"><div class="big" aria-hidden="true">…</div><div><b id="vTitle">Checking…</b><div class="muted small" id="vSub"></div><div class="segs" id="segs" aria-hidden="true"></div></div></div>
+  <div id="out" class="stack"></div>
+  <div class="row"><button class="btn ghost" id="again" type="button">Check again</button><span class="muted small" id="when"></span></div>
+</div>
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script src="/maps/lib/pmtiles.js"></script>
+<script>
+"use strict";
+const { $, esc } = UI;
+const MARK = { good: "✓", warn: "!", bad: "×", muted: "–" };
+const mb = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(n / 1e6)) + " MB";
+// A fetch that gives up, so one stuck file can't hang the whole check.
+const get = (url, opt = {}, ms = 8000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); return fetch(url, Object.assign({ cache: "no-store", signal: c.signal }, opt)).finally(() => clearTimeout(t)); };
+const json = async url => { const r = await get(url); if (!r.ok) throw new Error(r.status); return r.json(); };
+const tileXY = (lng, lat, z) => { const n = 2 ** z, r = lat * Math.PI / 180; return [Math.floor((lng + 180) / 360 * n), Math.floor((1 - Math.asinh(Math.tan(r)) / Math.PI) / 2 * n)]; };
+const inBox = (p, b) => p && b && p.lng >= b[0] && p.lng <= b[2] && p.lat >= b[1] && p.lat <= b[3];
+// The layers someone looks for first when something goes wrong.
+const HELP = [["hospitals", "Hospitals"], ["pharmacies", "Pharmacies"], ["fire", "Fire stations"], ["shelters", "Shelters"], ["drinking_water", "Drinking water"], ["fuel", "Fuel"]];
+
+let groups;
+const group = title => { const g = { title, rows: [] }; groups.push(g); return g; };
+const add = (g, tone, text, note, fix) => g.rows.push({ tone, text, note, fix });
+
+async function checkRecords() {
+  const g = group("Your records");
+  let db; try { db = await OG.load({ fresh: true }); } catch { db = { unread: true, items: [] }; }
+  if (db.unread) { add(g, "bad", "Your saved records could not be read", "Quit the app and open it again. Your backups are untouched."); return { home: null }; }
+  const n = db.items.length;
+  if (!n) add(g, "warn", "Nothing saved yet", "Add your home, water and gear so they are here when you need them.", ["Open My Place", "place"]);
+  else add(g, "good", n + (n === 1 ? " thing saved" : " things saved"), db.saved ? "Last saved " + OG.ago(db.saved) + ". A backup is kept on every save." : "");
+  const home = db.items.find(r => r.type === "place" && r.fields && r.fields.kind === "home");
+  if (home && home.loc) add(g, "good", "Home is pinned on the map", "Distances and Near me are measured from it.");
+  else add(g, "warn", home ? "Home is saved but not on the map" : "No Home saved yet", "Without it the app can't tell you what is nearest.", home ? ["Pin Home", "place/r=" + home.id] : ["Open My Place", "place"]);
+  return { home: home && home.loc ? home.loc : null };
+}
+
+// One map: read its header, then pull one real street tile out of it.
+async function checkMap(g, m, home) {
+  let h, pm;
+  try { pm = new pmtiles.PMTiles(m.url); h = await pm.getHeader(); } catch { add(g, "bad", m.name + ": the map file can't be opened", "Download it again on the Get maps screen.", ["Get maps", "setup"]); return null; }
+  const box = [h.minLon, h.minLat, h.maxLon, h.maxLat], at = inBox(home, box) ? home : { lng: (box[0] + box[2]) / 2, lat: (box[1] + box[3]) / 2 };
+  let got = null;
+  for (const z of [Math.min(h.maxZoom, 12), 8, 5]) { const [x, y] = tileXY(at.lng, at.lat, z); try { const t = await pm.getZxy(z, x, y); if (t && t.data && t.data.byteLength) { got = t.data.byteLength; break; } } catch {} }
+  if (got) add(g, "good", m.name + " streets: ready", "Read a real tile" + (inBox(home, box) ? " at Home" : "") + ". Detail down to zoom " + h.maxZoom + (m.bytes ? ", " + mb(m.bytes) : "") + ".");
+  else add(g, "bad", m.name + " streets: no tile could be read", "The file may be cut short. Download it again.", ["Get maps", "setup"]);
+  // hills
+  if (m.terrain) { let ok = false;   // maps keep hills at different zooms, so try the likely ones
+    for (const z of [...new Set([Math.min(m.terrainZoom || 10, 10), 12, 13, 11, 8])]) { const [x, y] = tileXY((m.terrainAt || at).lng, (m.terrainAt || at).lat, z);
+      try { if ((await get(m.terrain + z + "/" + x + "/" + y + ".png", { method: "HEAD" })).ok) { ok = true; break; } } catch {} }
+    add(g, ok ? "good" : "warn", m.name + " hills: " + (ok ? "ready" : "missing"), ok ? "Hill shading and elevation lines will draw." : "The map still works, just flat.", ok ? null : ["Get maps", "setup"]); }
+  else add(g, "warn", m.name + " hills: not downloaded", "The map still works, just flat.", ["Get maps", "setup"]);
+  // help layers
+  let idx = []; if (m.layers) { try { idx = await json(m.layers + "index.json"); } catch {} }
+  if (!idx.length) add(g, "bad", m.name + " help layers: missing", "No hospitals, shelters, water or fuel on the map. Tick “survival layers” when you download.", ["Get maps", "setup"]);
+  else { const miss = []; for (const [id, label] of HELP) { const o = idx.find(x => x.id === id); let ok = !!(o && o.count > 0);
+      if (ok) { try { ok = (await get(m.layers + id + ".geojson", { method: "HEAD" })).ok; } catch { ok = false; } }
+      if (!ok) miss.push(label); }
+    const total = idx.reduce((a, o) => a + (o.count || 0), 0);
+    if (miss.length) add(g, "warn", m.name + " help layers: " + miss.join(", ") + " missing", (HELP.length - miss.length) + " of " + HELP.length + " key layers are there.", ["Get maps", "setup"]);
+    else add(g, "good", m.name + " help layers: ready", idx.length + " layers, " + total.toLocaleString() + " places. " + HELP.map(x => x[1]).join(", ") + " all there."); }
+  return { box, layers: idx.length ? m.layers : null, name: m.name };
+}
+async function checkMaps(home) {
+  const g = group("Maps");
+  let packs = [], builtin = [];
+  try { packs = (await json("/api/packs")).filter(p => p.parts && p.parts.basemap); } catch {}
+  try { builtin = await json("/maps/maps.json"); } catch {}
+  const maps = packs.map(p => ({ name: p.name, url: "/packs/" + p.slug + "/" + (p.parts.basemap.file || "basemap.pmtiles"), bytes: p.parts.basemap.bytes,
+      terrain: p.parts.terrain ? "/packs/" + p.slug + "/terrain/" : null, terrainZoom: p.parts.terrain && p.parts.terrain.maxzoom, layers: p.parts.layers ? "/packs/" + p.slug + "/layers/" : null }))
+    .concat(builtin.map(f => ({ name: f.replace(/\.pmtiles$/, "") + " (built in)", url: "/maps/" + f, terrain: "/maps/terrain/", terrainAt: { lng: -97.2, lat: 33.0 }, layers: "/maps/overlays/" })));   // the built-in hills cover one area, the same box the map uses
+  if (!maps.length) { add(g, "bad", "No map on this Mac", "Download your state while you still have internet.", ["Get maps", "setup"]); return; }
+  const done = []; for (const m of maps) { const r = await checkMap(g, m, home); if (r) done.push(r); }
+  if (!home) return;
+  const cover = done.filter(m => inBox(home, m.box));
+  if (!cover.length) { add(g, "bad", "No map covers your Home", "Your Home pin is outside every map on this Mac.", ["Get maps", "setup"]); return; }
+  add(g, "good", "Home is inside the " + cover[0].name + " map");
+  // The real question: can it find help near you with no internet?
+  const src = cover.find(m => m.layers); if (!src) return;
+  const near = [];
+  for (const [id, label] of [["hospitals", "hospital"], ["drinking_water", "drinking water"], ["shelters", "shelter"]]) {
+    try { const fc = await (await get(src.layers + id + ".geojson", {}, 15000)).json(); let best = Infinity;
+      for (const f of fc.features || []) { const c = f.geometry && f.geometry.type === "Point" ? f.geometry.coordinates : null; if (c) best = Math.min(best, OG.miles([home.lng, home.lat], c)); }
+      if (isFinite(best)) near.push(label + " " + (best < 10 ? best.toFixed(1) : Math.round(best)) + " mi"); } catch {}
+  }
+  if (near.length) add(g, "good", "Nearest help to Home was found", "Nearest " + near.join(", ") + ". Straight-line distance.", ["See it on the map", "map"]);
+  else add(g, "warn", "Could not find help near Home", "The help layers did not open.");
+}
+async function checkLearn() {
+  const g = group("Guides and manuals");
+  let cat = []; try { cat = await json("/learn/catalog.json"); } catch {}
+  if (!cat.length) { add(g, "bad", "The library list is missing", "Rebuild the app from the latest code."); return; }
+  const md = cat.find(e => e.md), pdf = cat.find(e => e.pdf);
+  let mdOk = false, pdfOk = false, idx = 0, have = 0;
+  if (md) { try { const r = await get("/learn/" + md.slug + "/index.md"); mdOk = r.ok && (await r.text()).length > 200; } catch {} }
+  for (const e of cat.filter(e => e.pdf)) { try { if ((await get(e.pdf, { method: "HEAD" })).ok) { have++; if (!pdfOk) { const r = await get(e.pdf, { headers: { Range: "bytes=0-1023" } }); pdfOk = r.ok && new TextDecoder().decode(await r.arrayBuffer()).startsWith("%PDF"); } } } catch {} }
+  const pdfs = cat.filter(e => e.pdf).length;
+  add(g, mdOk ? "good" : "warn", mdOk ? "Opened a guide: " + md.title : "No quick guide could be opened");
+  if (pdf) add(g, pdfOk ? (have === pdfs ? "good" : "warn") : "bad", pdfOk ? have + " of " + pdfs + " manuals are on this Mac" : "No manual could be opened", have < pdfs && pdfOk ? "Learn only lists the ones that are here." : "", have < pdfs ? ["Open Learn", "learn"] : null);
+  try { idx = (await json("/learn/search-index.json")).length; } catch {}
+  add(g, idx ? "good" : "bad", idx ? "Search works inside the manuals" : "The search index is missing", idx ? idx.toLocaleString() + " pages and sections indexed." : "Search will only find your records.");
+  let sc = 0; try { sc = (await json("/hub/data/scenarios.json")).length; } catch {}
+  add(g, sc ? "good" : "bad", sc ? "“Something happening?” steps are ready" : "The emergency steps are missing", sc ? "Power out, flood, heat, freeze and the rest open from Home." : "");
+}
+async function checkWiki() {
+  const g = group("Wiki library and plan");
+  let m = {}; try { m = await json("/api/manifest"); } catch {}
+  const z = (m.zims || []).length;
+  if (!z) add(g, "muted", "No wiki collections on this Mac", "Optional. The guides and manuals above do not need them.");
+  else { let up = false; if (m.kiwix) { try { await get(m.kiwix, { mode: "no-cors" }, 4000); up = true; } catch {} }
+    add(g, up ? "good" : "warn", up ? z + " wiki collections are ready" : z + " wiki collections are here but the reader is not running", up ? "" : "Quit the app and open it again."); }
+  const d = (m.docs || []).length;
+  add(g, d ? "good" : "muted", d ? d + " plan pages are ready" : "No plan pages in this copy", d ? "" : "The plan is only in your own copy.", d ? ["Open Plan", "plan"] : null);
+}
+
+let running = false;
+async function run() {
+  if (running) return; running = true; groups = [];
+  $("#verdict").className = "card verdict"; $("#verdict .big").textContent = "…"; $("#vTitle").textContent = "Checking…"; $("#vSub").textContent = "Opening the files on this Mac."; $("#segs").replaceChildren(); $("#out").replaceChildren(); $("#again").disabled = true;
+  try {
+    const { home } = await checkRecords(); draw();
+    await checkMaps(home); draw();
+    await checkLearn(); draw();
+    await checkWiki();
+  } catch (e) { console.error(e); add(group("The check itself"), "bad", "The check stopped early", String(e && e.message || e)); }
+  draw(true); running = false; $("#again").disabled = false;
+  $("#when").textContent = "Checked " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+function draw(final) {
+  $("#out").innerHTML = groups.filter(g => g.rows.length).map(g => `<section class="card group"><h2>${esc(g.title)}</h2>${g.rows.map(r =>
+    `<div class="chk ${r.tone}"><span class="dot" aria-hidden="true">${MARK[r.tone]}</span><div><b>${esc(r.text)}</b><span class="sr-only"> (${({ good: "ready", warn: "needs a look", bad: "problem", muted: "optional" })[r.tone]})</span>${r.note ? `<small>${esc(r.note)}</small>` : ""}</div>${r.fix ? `<button class="btn ghost" type="button" data-go="${esc(r.fix[1])}">${esc(r.fix[0])}</button>` : "<span></span>"}</div>`).join("")}</section>`).join("");
+  const rows = groups.flatMap(g => g.rows).filter(r => r.tone !== "muted");
+  $("#segs").innerHTML = rows.map(r => `<i class="${r.tone}"></i>`).join("");
+  if (!final) return;
+  const bad = rows.filter(r => r.tone === "bad").length, warn = rows.filter(r => r.tone === "warn").length, good = rows.length - bad - warn;
+  const tone = bad ? "bad" : warn ? "warn" : "good";
+  $("#verdict").className = "card verdict " + tone; $("#verdict .big").textContent = good + "/" + rows.length;
+  $("#vTitle").textContent = bad ? (bad === 1 ? "1 thing will not work offline" : bad + " things will not work offline") : warn ? "It will work. " + (warn === 1 ? "1 thing" : warn + " things") + " could be better" : "Ready. Everything opened with no internet needed";
+  $("#vSub").textContent = good + " ready" + (warn ? ", " + warn + " to look at" : "") + (bad ? ", " + bad + " to fix" : "") + ". Fix buttons are on the right of each row.";
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) UI.go(b.dataset.go); });
+$("#again").onclick = run;
+// Run when first opened, and again each time the screen is shown, so it is never a stale answer.
+UI.onMessage(m => { if (m.og === "shown") run(); });
+run();
+</script>
+</body>
+</html>

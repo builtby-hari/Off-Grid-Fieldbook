@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get maps</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+/* Setup: pick a state, pick a size, see the size, download. One step at a time, top to bottom. */
+.step { display: grid; grid-template-columns: 30px 1fr; gap: 12px; }
+.step > .n { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 700 var(--t-sm) var(--mono); }
+.sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.size { border: 1px solid var(--line); background: var(--card); border-radius: var(--r-lg); padding: 10px 12px; display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.size:has(input:checked) { border-color: var(--accent); outline: 2px solid var(--accent); }
+.size b { display: block; } .size span { color: var(--ink2); font-size: var(--t-sm); }
+#log { font: var(--t-xs)/1.5 var(--mono); background: var(--chip); border-radius: var(--r); padding: 10px 12px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 0; }
+select#region { min-width: 260px; }
+</style>
+</head>
+<body class="topo">
+<div class="page">
+  <div>
+    <h1>Get your state's map</h1>
+    <p class="muted">Pick a state and the app downloads its map for you. After that the map works with no internet. This is the only screen that goes online, and only when you press Download.</p>
+  </div>
+
+  <div class="banner" id="needTools" hidden>
+    <b>One thing first.</b> The download needs Apple's free developer tools on this Mac. Press the button and a window from Apple will open. Say yes, wait for it to finish (a few minutes), then press Check again.
+    <div class="row" style="margin-top:8px"><button class="btn" id="installTools">Install Apple's tools</button><button class="btn ghost" id="recheck">Check again</button></div>
+  </div>
+  <div class="banner" id="noTool" hidden>This copy of the app does not include the map downloader. Rebuild it from the latest code.</div>
+
+  <div class="card" id="have" hidden><div class="eyebrow">Maps on this Mac</div><div id="haveList"></div></div>
+
+  <div class="card stack" id="form">
+    <div class="step"><div class="n">1</div><div class="stack">
+      <label class="field" for="region"><b>Which state?</b>
+        <select id="region"><option value="">Loading the list…</option></select></label>
+    </div></div>
+    <div class="step"><div class="n">2</div><div class="stack">
+      <b id="sizeLabel">How much detail?</b>
+      <div class="sizes" role="radiogroup" aria-labelledby="sizeLabel">
+        <label class="size"><input type="radio" name="level" value="lite"><span><b>Small</b>Streets and towns, light terrain. Fast to get. Good for "where is it".</span></label>
+        <label class="size"><input type="radio" name="level" value="standard" checked><span><b>Standard</b>Every street and building, with hills. The one most people want.</span></label>
+        <label class="size"><input type="radio" name="level" value="full"><span><b>Full</b>Same streets, the sharpest hills and elevation lines. Biggest.</span></label>
+      </div>
+      <label class="row"><input type="checkbox" id="layers" checked> Include survival layers: springs, hospitals, shelters, fuel, railroads and more</label>
+      <p class="src">Survival layers need a one-time download of a small map reader and that state's OpenStreetMap file, which is removed afterwards.</p>
+    </div></div>
+    <div class="step"><div class="n">3</div><div class="stack">
+      <div class="row"><button class="btn ghost" id="check">Check the size</button><button class="btn" id="go" disabled>Download</button><button class="btn danger" id="stop" hidden>Stop</button></div>
+      <div id="plan" role="status" aria-live="polite"></div>
+    </div></div>
+  </div>
+
+  <div class="card stack" id="progress" hidden>
+    <div class="spread"><h3 id="jobTitle">Downloading</h3><span class="pill info" id="jobState">working</span></div>
+    <pre id="log" role="log" aria-live="polite" aria-label="Download progress"></pre>
+    <div class="row" id="doneRow" hidden><button class="btn" id="openMap">Open the map</button><span class="muted small">You can close this screen. A stopped download picks up where it left off.</span></div>
+  </div>
+  <p class="src">Map data: OpenStreetMap contributors (ODbL), base map built by Protomaps. Terrain: AWS Terrain Tiles open data.</p>
+</div>
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script>
+"use strict";
+const { $, $$, esc } = UI;
+const size = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(n / 1e6)) + " MB";
+const post = (what, body) => fetch("/api/setup/" + what, { method: "POST", headers: { "X-OffGrid": "1", "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+  .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "That did not work."); return d; });
+const picked = () => ({ region: $("#region").value, level: $("input[name=level]:checked").value, layers: $("#layers").checked });
+let timer = null, lastSlug = "";
+
+async function status() {
+  let s; try { s = await UI.getJSON("/api/setup/status"); } catch { $("#noTool").hidden = false; $("#form").hidden = true; return null; }
+  $("#noTool").hidden = s.tools; $("#needTools").hidden = !s.tools || s.python; $("#form").hidden = !s.tools;
+  $("#check").disabled = !s.python;
+  $("#have").hidden = !s.packs.length;
+  $("#haveList").innerHTML = s.packs.map(p => { const parts = Object.keys(p.parts || {}).map(k => ({ basemap: "base map", terrain: "terrain", layers: "survival layers" })[k] || k).join(", ");
+    return `<div class="kv"><span>${esc(p.name || p.slug)} <span class="muted small">${esc(parts)}</span></span><span class="pill good">${esc(p.level || "installed")}</span></div>`; }).join("");
+  job(s.job);
+  return s;
+}
+function job(j) {
+  const active = j.running || j.title;
+  $("#progress").hidden = !active; if (!active) return;
+  $("#jobTitle").textContent = "Downloading " + j.title;
+  const log = $("#log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+  log.textContent = j.lines.join("\n"); if (atEnd) log.scrollTop = log.scrollHeight;
+  const st = $("#jobState");
+  st.textContent = j.running ? "working" : j.exit === 0 ? "done" : j.exit === -1 ? "stopped" : "failed";
+  st.className = "pill " + (j.running ? "info" : j.exit === 0 ? "good" : j.exit === -1 ? "warn" : "bad");
+  $("#stop").hidden = !j.running; $("#go").disabled = j.running || !$("#plan").dataset.ok; $("#doneRow").hidden = j.running || j.exit !== 0;
+  if (j.running && !timer) timer = setInterval(status, 1500);
+  if (!j.running && timer) { clearInterval(timer); timer = null; }
+}
+
+$("#check").onclick = async () => {
+  const p = picked(), out = $("#plan"); delete out.dataset.ok; $("#go").disabled = true;
+  if (!p.region) { out.innerHTML = '<p class="muted">Pick a state first.</p>'; return; }
+  out.innerHTML = '<p class="muted">Checking the size. This needs the internet and takes a few seconds.</p>';
+  try {
+    const d = await post("plan", p), r = d.regions[0], total = p.layers ? d.total : d.total - r.layers;
+    out.innerHTML = `<div class="kv"><span>Base map</span><b>${size(r.basemap)}</b></div><div class="kv"><span>Terrain</span><b>${size(r.terrain)}</b></div>` +
+      (p.layers ? `<div class="kv"><span>Survival layers</span><b>${size(r.layers)}</b></div>` : "") +
+      `<div class="kv"><span><b>Total for ${esc(r.name)}</b></span><b>${size(total)}</b></div><div class="kv"><span>Free on this Mac</span><b>${size(d.free)}</b></div>` +
+      (d.ok ? '<p><span class="pill good">Enough room</span></p>' : '<p><span class="pill bad">Not enough room</span> Free up space or pick a smaller size.</p>') +
+      (p.layers && r.osm_download ? `<p class="src">Also downloads ${size(r.osm_download)} of OpenStreetMap data while it works, then deletes it.</p>` : "");
+    if (d.ok) { out.dataset.ok = "1"; $("#go").disabled = false; }
+  } catch (e) { out.innerHTML = `<p><span class="pill bad">Could not check</span> ${esc(e.message)}</p>`; }
+};
+$$("#region, input[name=level], #layers").forEach(i => i.addEventListener("change", () => { delete $("#plan").dataset.ok; $("#go").disabled = true; $("#plan").textContent = ""; }));
+$("#go").onclick = async () => { const p = picked(); lastSlug = p.region;
+  try { await post("get", p); await status(); } catch (e) { UI.toast(e.message, true); } };
+$("#stop").onclick = () => post("cancel").then(status).catch(e => UI.toast(e.message, true));
+$("#installTools").onclick = () => post("tools").then(() => UI.toast("Apple's installer is opening")).catch(e => UI.toast(e.message, true));
+$("#recheck").onclick = status;
+$("#openMap").onclick = () => { if (lastSlug) UI.store.set("map:region", "pack:" + lastSlug); UI.go("map"); };
+
+UI.getJSON("/hub/data/regions.json").then(d => {
+  const rs = (d.regions || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  $("#region").innerHTML = '<option value="">Pick a state…</option>' + rs.map(r => `<option value="${esc(r.slug)}">${esc(r.name)}</option>`).join("");
+}).catch(() => { $("#region").innerHTML = '<option value="">The state list is missing from this copy</option>'; });
+status();
+</script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Off-Grid Fieldbook</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+/* The shell: sidebar with search and five tabs, and one main area. Screens load in frames. See CONTRACT.md. */
+body { display: grid; grid-template-columns: 208px 1fr; overflow: hidden; }
+nav { background: var(--side); border-right: 1px solid var(--line); padding: 16px 10px 12px; display: flex; flex-direction: column; gap: 3px; min-height: 0; }
+.brand { font-weight: 700; font-size: 19px; letter-spacing: .01em; padding: 0 8px 10px; }
+.brand small { display: block; font-weight: 400; font-size: var(--t-xs); color: var(--muted); }
+#find { width: 100%; margin-bottom: 10px; }
+nav .tab { appearance: none; border: 0; background: none; text-align: left; cursor: pointer; padding: 8px 9px; border-radius: var(--r); font-size: var(--t-md); font-weight: 500; display: flex; gap: 9px; align-items: center; }
+nav .tab i { width: 16px; text-align: center; font-style: normal; font-family: var(--mono); }
+nav .tab:hover { background: var(--chip); }
+nav .tab[aria-current="page"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+nav .grow { flex: 1; }
+nav .foot { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 9px; font-size: var(--t-xs); }
+main { position: relative; min-width: 0; min-height: 0; }
+main > section { position: absolute; inset: 0; display: none; overflow: auto; }
+main > section.on { display: block; }
+main > section.frame.on { display: flex; flex-direction: column; overflow: hidden; }
+iframe { border: 0; flex: 1; width: 100%; min-height: 0; background: var(--bg); }
+.split { display: grid; grid-template-columns: 270px 1fr; height: 100%; min-height: 0; }
+.split > .list { overflow: auto; border-right: 1px solid var(--line); background: var(--card); padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.split > .list button { appearance: none; border: 0; background: none; text-align: left; cursor: pointer; padding: 7px 9px; border-radius: var(--r); }
+.split > .list button:hover, .split > .list button.on { background: var(--chip); }
+.split > .list button.on { font-weight: 600; }
+.split > .view { overflow: auto; min-width: 0; display: flex; flex-direction: column; }
+.bar { display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--card); }
+.hits { display: flex; flex-direction: column; gap: 6px; }
+.hit { appearance: none; border: 1px solid var(--line); background: var(--card); border-radius: var(--r-lg); text-align: left; cursor: pointer; padding: 9px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
+.hit:hover { border-color: var(--accent); } .hit small { color: var(--muted); grid-column: 1 / -1; } .hit .where { color: var(--muted); font-size: var(--t-xs); }
+@media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } nav { flex-direction: row; flex-wrap: wrap; padding: 8px; } .brand, nav .grow { display: none; } #find { width: auto; flex: 1 1 100%; margin: 0 0 4px; } .split { grid-template-columns: 1fr; } }
+@media print { nav { display: none; } body { display: block; overflow: visible; } main > section { position: static; overflow: visible; } }
+</style>
+</head>
+<body>
+<nav aria-label="Main">
+  <div class="brand">Off-Grid<br>Fieldbook<small>Works with no internet</small></div>
+  <input id="find" type="search" placeholder="Search everything" aria-label="Search everything (Command K)">
+  <button class="tab" data-tab="home"><i>⌂</i>Home</button>
+  <button class="tab" data-tab="map"><i>◎</i>Map</button>
+  <button class="tab" data-tab="place"><i>◧</i>My Place</button>
+  <button class="tab" data-tab="learn"><i>▤</i>Learn</button>
+  <button class="tab" data-tab="plan"><i>☑</i>Plan</button>
+  <div class="grow"></div>
+  <div class="foot"><button class="linkbtn" data-tab="setup">Get maps</button><button class="linkbtn" data-tab="check">Offline check</button><button class="linkbtn" data-tab="help">Help</button><button class="linkbtn" id="theme">Theme</button></div>
+</nav>
+<main>
+  <section id="s-home" class="frame"></section>
+  <section id="s-map" class="frame"></section>
+  <section id="s-place" class="frame"></section>
+  <section id="s-learn" class="frame"></section>
+  <section id="s-setup" class="frame"></section>
+  <section id="s-check" class="frame"></section>
+  <section id="s-wiki" class="frame"><div class="bar"><b style="flex:1">Wiki library</b><button class="btn ghost" id="wikiHome">Library home</button><button class="btn ghost" data-go="learn">Back to Learn</button></div><div id="wikiHost" style="flex:1;display:flex;min-height:0"><div class="empty" id="wikiMsg" style="padding:30px">Opening the library…</div></div></section>
+  <section id="s-plan"><div class="split"><div class="list" id="planList"></div><div class="view" id="planView"><div class="empty" style="padding:30px">Pick a page on the left.</div></div></div></section>
+  <section id="s-search" class="topo"><div class="page"><h1 id="searchTitle">Search</h1><div id="searchOut" class="stack"></div></div></section>
+  <section id="s-help" class="topo"><div class="page"><div class="prose" id="helpDoc"></div></div></section>
+</main>
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script src="md.js"></script>
+<script>
+"use strict";
+const { $, $$, el, esc } = UI;
+const native = msg => { try { window.webkit.messageHandlers.offgrid.postMessage(msg); return true; } catch { return false; } };
+let M = { books: [], zims: [], maps: [], docs: [], kiwix: "" };
+
+// ---------- routes ----------
+// The address is "#<tab>/<rest>" or "#<tab>?<rest>". The shell owns the tab. The rest belongs to the screen.
+const FRAMES = { home: "/hub/home.html", map: "/maps/index.html", place: "/hub/place.html", learn: "/hub/learn.html", setup: "/hub/setup.html", check: "/hub/check.html" };
+const TABS = ["home", "map", "place", "learn", "plan", "wiki", "search", "help", "setup", "check"];
+const NAV_FOR = { wiki: "learn", search: null, help: null, setup: "map", check: null };
+function parse(hash) {
+  let route = String(hash).replace(/^#/, ""); try { route = decodeURIComponent(route); } catch {}   // a stray % in a search must not break the app
+  let tab = route.split(/[/?]/)[0];
+  const rest = route.slice(tab.length + 1);
+  if (tab === "now") tab = "home";   // older links
+  return TABS.includes(tab) ? { tab, rest } : { tab: "home", rest: "" };
+}
+function show() {
+  const { tab, rest } = parse(location.hash);
+  $$("main > section").forEach(s => s.classList.toggle("on", s.id === "s-" + tab));
+  const navTab = tab in NAV_FOR ? NAV_FOR[tab] : tab;
+  $$("nav [data-tab]").forEach(b => b.dataset.tab === navTab ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  if (FRAMES[tab]) {
+    const host = $("#s-" + tab); let f = host.querySelector("iframe");
+    if (!f) host.append(el("iframe", { title: tab, src: FRAMES[tab] + (rest ? "#" + encodeURI(rest) : "") }));   // first open: the route rides in on the address
+    /* the map clears its command after reading it, so a repeat is sent again */ else if (tab === "map" ? rest : decodeURIComponent(f.contentWindow.location.hash.slice(1)) !== rest) f.contentWindow.location.replace(FRAMES[tab] + "#" + encodeURI(rest));
+  }
+  if (FRAMES[tab]) tellFrame(tab, { og: "shown" });
+  if (tab === "plan") openPlan(rest);
+  if (tab === "wiki") openWiki(rest);
+  if (tab === "search") runSearch(rest);
+  document.title = "Off-Grid Fieldbook · " + ({ home: "Home", map: "Map", place: "My Place", learn: "Learn", plan: "Plan", wiki: "Wiki library", search: "Search", help: "Help", setup: "Get maps", check: "Offline check" })[tab];
+}
+// Tell one screen something. Screens that are not loaded yet read fresh records when they load anyway.
+function tellFrame(tab, msg) { const f = $("#s-" + tab + " iframe"); try { if (f && f.contentWindow) f.contentWindow.postMessage(msg, location.origin); } catch {} }
+const go = route => { const h = "#" + route.replace(/^#/, ""); if (location.hash === h) show(); else location.hash = h; };
+addEventListener("hashchange", show);
+document.addEventListener("click", e => { const b = e.target.closest("[data-tab],[data-go]"); if (b) go(b.dataset.tab || b.dataset.go); });
+$("#theme").onclick = UI.toggleTheme;
+
+// ---------- messages from screens (the whole contract is in CONTRACT.md) ----------
+// Old links saved inside records keep working: they are translated to new routes here.
+function legacy(href) {
+  const v = /^\/hub\/visual\.html#(\w+)/.exec(href);
+  if (v) return ({ heat: "home/heat", cold: "home/freeze", evac: "home/evac", timeline: "home/power" })[v[1]] || "learn/guide-" + v[1];
+  if (/^\/hub\/emergency\.html/.test(href)) return "home";
+  const i = /^\/hub\/index\.html#(.*)/.exec(href);
+  if (i) return i[1].replace(/^library\/?/, "wiki/").replace(/^books\/?.*/, "learn").replace(/^(shelf|plants|visual)$/, "learn").replace(/^maps/, "map").replace(/^emergency$/, "home");
+  return null;
+}
+addEventListener("message", e => {
+  if (e.origin !== location.origin) return;
+  const frames = $$("main iframe").map(f => f.contentWindow);
+  if (!frames.includes(e.source)) return;
+  const m = e.data || {};
+  if (m.og === "go" && typeof m.route === "string") go(m.route);
+  else if (m.og === "pickLocation") go("map?pick=" + m.id);
+  else if (m.og === "showOnMap") go("map?fly=" + m.lng + "," + m.lat);
+  else if (m.og === "locationPicked") { const f = $("#s-place iframe"); if (f) f.contentWindow.postMessage(m, location.origin); go("place/r=" + m.id); }
+  else if (m.og === "recordsChanged") Object.keys(FRAMES).forEach(t => { const f = $("#s-" + t + " iframe"); if (f && f.contentWindow !== e.source) tellFrame(t, m); });
+  else if (m.og === "openRecord") go(m.id ? "place/r=" + m.id : "place");
+  else if (m.og === "openGuide") { const r = legacy(m.href || ""); if (r) go(r); }
+});
+
+// ---------- plan ----------
+const nice = t => t.replace(/^\d+[-_ ]/, "").replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+let planShown = null;
+function openPlan(rest) {
+  const list = $("#planList");
+  if (!list.children.length) {
+    if (!M.docs.length) list.append(el("div", { class: "empty" }, "No plan pages in this copy. The plan is only in your personal edition."));
+    else { list.append(el("div", { class: "eyebrow", style: "padding:4px 9px 6px" }, "Your plan")); M.docs.forEach(d => list.append(el("button", { onclick: () => go("plan/" + d.title) }, nice(d.title)))); }
+  }
+  const d = M.docs.find(x => x.title === rest) || (rest ? M.docs.find(x => x.title.toLowerCase().includes(rest.toLowerCase())) : M.docs[0]);
+  if (!d || d === planShown) return; planShown = d;
+  $$("#planList button").forEach(b => b.classList.toggle("on", b.textContent === nice(d.title)));
+  const view = $("#planView");
+  if (d.kind === "html") return view.replaceChildren(el("iframe", { src: d.path, title: d.title }));
+  UI.getText(d.path).then(t => {
+    const box = el("div", { class: "prose", style: "padding:24px 30px 60px" }); box.innerHTML = MD.render(t).html;
+    const key = "ticks:" + d.title, saved = UI.store.get(key, {});
+    $$("input[type=checkbox]", box).forEach((cb, i) => { if (i in saved) cb.checked = saved[i]; cb.onchange = () => { saved[i] = cb.checked; UI.store.set(key, saved); }; });
+    view.replaceChildren(el("div", { class: "bar noprint" }, el("b", { style: "flex:1" }, nice(d.title)), el("button", { class: "btn ghost", onclick: () => print() }, "Print")), box);
+  }).catch(() => view.replaceChildren(el("div", { class: "empty", style: "padding:30px" }, "That plan page could not be opened.")));
+}
+
+// ---------- wiki library (Kiwix starts the first time it is needed) ----------
+let kiwixWaiters = [];
+const waitFor = (url, tries) => fetch(url, { mode: "no-cors", cache: "no-store" }).then(() => true).catch(() => tries > 0 ? new Promise(r => setTimeout(r, 250)).then(() => waitFor(url, tries - 1)) : false);
+window.onKiwix = url => {
+  M.kiwix = url;
+  if (!url) return void ($("#wikiMsg").textContent = "The library reader isn't in this copy of the app.");
+  waitFor(url, 40).then(ok => ok ? kiwixWaiters.splice(0).forEach(f => f()) : $("#wikiMsg").textContent = "The library reader didn't start. Quit and reopen the app.");
+};
+function wikiLoad(path) { const host = $("#wikiHost"); let f = host.querySelector("iframe"); if (!f) { f = el("iframe", { title: "Wiki library" }); host.replaceChildren(f); } f.src = M.kiwix + (path || ""); }
+let wikiPath = null;
+function openWiki(rest) {
+  if (!M.zims.length) return void ($("#wikiMsg").textContent = "No library files in this copy.");
+  const run = () => { if (rest !== wikiPath || !$("#wikiHost iframe")) { wikiPath = rest; wikiLoad(rest); } };
+  if (M.kiwix) return run();
+  kiwixWaiters.push(run);
+  if (!native({ action: "kiwix" })) $("#wikiMsg").textContent = "Open this inside the Off-Grid Fieldbook app to read the library.";
+}
+$("#wikiHome").onclick = () => go("wiki/");
+
+// ---------- search everything ----------
+// Sources: your records, converted manuals (every section), the Learn catalog, Now scenarios, plan pages, plants.
+// The map and the wiki library run their own search, so they get a hand-off row each.
+const SRC = {};
+const lazy = (k, load) => SRC[k] || (SRC[k] = load().catch(() => []));
+const sources = () => Promise.all([
+  UI.getJSON("/api/data/records.json").then(d => (d && d.items) || []).catch(() => []),                       // always fresh
+  lazy("sections", () => UI.getJSON("/learn/search-index.json")),
+  lazy("catalog", () => UI.getJSON("/learn/catalog.json")),
+  lazy("scenarios", () => UI.getJSON("/hub/data/scenarios.json")),
+  lazy("plants", () => UI.getJSON("/plants/plants.json")),
+]);
+function snippet(text, words) {
+  const low = text.toLowerCase(); let at = -1; for (const w of words) { at = low.indexOf(w); if (at >= 0) break; }
+  const s = Math.max(0, at - 60); return (s ? "…" : "") + text.slice(s, s + 170).trim() + (text.length > s + 170 ? "…" : "");
+}
+async function runSearch(q) {
+  q = q.trim(); $("#find").value = q; $("#searchTitle").textContent = q ? "Results for “" + q + "”" : "Search";
+  const out = $("#searchOut"); if (!q) return out.replaceChildren(el("div", { class: "empty" }, "Type in the search box. It looks through your records, the manuals, plants, your plan and more."));
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean), all = t => words.every(w => t.includes(w));
+  const score = (title, body) => (all(title.toLowerCase()) ? 3 : 0) + words.filter(w => title.toLowerCase().includes(w)).length + (all(body) ? 1 : 0);
+  const [records, sections, catalog, scenarios, plants] = await sources();
+  const groups = [];
+  const add = (name, rows) => { rows = rows.filter(r => r.s > 0).sort((a, b) => b.s - a.s).slice(0, 8); if (rows.length) groups.push([name, rows]); };
+  add("What to do now", scenarios.map(x => { const body = (x.title + " " + (x.steps || []).join(" ") + " " + (x.keywords || "")).toLowerCase(); return { s: all(body) ? score(x.title, body) + 1 : 0, t: x.title, d: (x.steps || [])[0] || "", go: "home/" + x.id }; }));
+  add("Your records", records.map(r => { const body = JSON.stringify([r.name, r.fields, r.log && r.log.map(l => l.text)]).toLowerCase(); return { s: all(body) ? score(r.name, body) : 0, t: r.name, d: (OG.TYPES[r.type] || {}).label + " · " + OG.statusOf(r).label, go: "place/r=" + r.id }; }));
+  add("Manuals", sections.map(x => { const body = (x.h + " " + x.x).toLowerCase(); return { s: all(body) ? score(x.h, body) : 0, t: x.pg ? x.t : (x.h || x.t), d: snippet(x.x, words), where: x.pg ? "page " + x.pg : x.t + (x.p ? " · page " + x.p : ""), go: x.pg ? "learn/" + x.s + "?page=" + x.pg : "learn/" + x.s + "/" + x.a }; }));
+  add("Library", catalog.map(x => { const body = (x.title + " " + (x.why || "") + " " + (x.publisher || "") + " " + (x.topic || "")).toLowerCase(); return { s: all(body) ? score(x.title, body) : 0, t: x.title, d: [x.publisher, x.year].filter(Boolean).join(", "), go: x.route || "learn/" + x.slug }; }));
+  add("Your plan", M.docs.map(d => ({ s: all(nice(d.title).toLowerCase()) ? 2 : 0, t: nice(d.title), d: "Plan page", go: "plan/" + d.title })));
+  add("Plants", plants.map(p => { const body = ((p.c || "") + " " + (p.l || "")).toLowerCase(); return { s: all(body) ? 2 : 0, t: p.c || p.l, d: p.l || "", go: "learn/plants?q=" + (p.c || p.l) }; }));
+  const rows = [];
+  for (const [name, hits] of groups) {
+    rows.push(el("div", { class: "eyebrow" }, name));
+    const box = el("div", { class: "hits" });
+    for (const h of hits) { const b = el("button", { class: "hit", onclick: () => go(h.go) }); b.innerHTML = `<b>${UI.highlight(h.t, q)}</b><span class="where">${esc(h.where || "")}</span><small>${UI.highlight(h.d, q)}</small>`; box.append(b); }
+    rows.push(box);
+  }
+  rows.push(el("div", { class: "eyebrow" }, "Look further"));
+  const more = el("div", { class: "hits" });
+  more.append(el("button", { class: "hit", onclick: () => go("map?q=" + q) }, el("b", {}, "Search the map for “" + q + "”"), el("small", {}, "Towns, your pins, springs, hospitals and the other map layers")));
+  if (M.zims.length) more.append(el("button", { class: "hit", onclick: () => go("wiki/search?pattern=" + encodeURIComponent(q)) }, el("b", {}, "Search the wiki library for “" + q + "”"), el("small", {}, M.zims.length + " collections: medical, repair, survival, Wikipedia")));
+  rows.push(more);
+  if (!groups.length) rows.unshift(el("div", { class: "empty" }, "Nothing matched in your records, manuals, plants or plan. Try the map or the wiki library below."));
+  out.replaceChildren(...rows);
+}
+$("#find").addEventListener("input", UI.debounce(() => { const q = $("#find").value.trim(); if (q.length > 1) go("search/" + q); }, 250));
+$("#find").addEventListener("keydown", e => { if (e.key === "Enter") { const b = $("#searchOut .hit"); if (b) b.click(); } });
+addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#find").focus(); $("#find").select(); } });
+
+// ---------- help ----------
+const HELP = `# How to use Off-Grid Fieldbook
+
+Everything in this app lives on this Mac. It keeps working with no internet, no cell service and no account.
+
+## The five tabs
+| Tab | What it is for |
+|---|---|
+| Home | Where everything is, how long your supplies last, and what to do if something is happening |
+| Map | Offline map with terrain, survival layers, your pins and Near me |
+| My Place | Your water, gear, supplies, places and people. Calculators and readiness drills |
+| Learn | Manuals, guides and plants, sorted by problem. The wiki library is the deep layer |
+| Plan | Your 90-day plan and checklists |
+
+The search box (Command K) looks through all of it at once.
+
+## Checking it works offline
+Press **Offline check** at the bottom left. It opens a real map tile, a guide, the help layers and your records, and tells you plainly what is ready and what is missing. Do this before you need it.
+
+## Getting a map
+Press **Get maps** at the bottom left, pick your state and a size, and the app downloads it. That is the only time the app goes online.
+
+## Saving battery
+- Close the app when you are done. Nothing runs in the background.
+- The wiki library reader only starts when you open it.
+- Turn the screen brightness down. The screen uses more power than this app.
+- Dark mode uses less power on an OLED screen. Use the Light / dark switch at the bottom left.
+
+## Print while you still have power
+- Home: the rescue card and each "something happening" page.
+- My Place: any record, and the shopping list from the supplies calculator.
+- Plan: every checklist page.
+
+## Put the essentials on your phone too
+| App | Why |
+|---|---|
+| Kiwix | Reads the same library files on iPhone |
+| Organic Maps or CoMaps | Offline maps with directions |
+| Meshtastic | Texting over radio with no cell service |
+
+## Sharing this app
+1. Send **Off-Grid Fieldbook.app** with AirDrop or copy it to a USB drive. Put it in Applications.
+2. The first time, macOS may say it can't check the developer. Open **System Settings > Privacy & Security**, scroll down, and click **Open Anyway**.
+3. Shared copies leave out your plan, your records and anything marked personal use only.
+
+> This app is a reference, not a doctor. In a real emergency, get help if any help can be reached.`;
+$("#helpDoc").innerHTML = MD.render(HELP).html;
+
+// ---------- start ----------
+UI.getJSON("/api/manifest").then(m => { M = Object.assign(M, m); }).catch(() => UI.toast("Couldn't read the app's file list", true)).finally(show);
+</script>
+</body>
+</html>

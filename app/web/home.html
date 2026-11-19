@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  /* layout for this screen only. Colors and type come from ui.css tokens. */
+  .shelter3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+  .shelter3 > div { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; font-size: var(--t-sm); }
+  .shelter3 b { display: block; font-size: var(--t-md); margin-bottom: 2px; }
+  details.banner > summary { cursor: pointer; font-weight: 700; font-size: var(--t-md); }
+  details.banner > summary:hover { text-decoration: underline; }
+  .detail { border-left: 4px solid var(--line); }
+  .detail.warn { border-left-color: var(--warn); }
+  .detail.crit { border-left-color: var(--crit); }
+  .detail ul, .sub ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+  .detail h3, .card h3 { margin: 0; font-size: var(--t-lg); }
+  .line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .line:first-child { border-top: 0; padding-top: 0; }
+  .line > div { min-width: 0; flex: 1 1 180px; }
+  .rowbtn { appearance: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 7px 0 0; color: inherit; text-align: left; cursor: pointer; }
+  .rowbtn:first-child { border-top: 0; padding-top: 0; }
+  .rowbtn:hover b { text-decoration: underline; }
+  .say { background: var(--chip); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+  .sub { display: flex; flex-direction: column; gap: 6px; }
+  .sub + .sub { border-top: 1px solid var(--line); padding-top: 10px; }
+  .meta { color: var(--muted); font-size: var(--t-sm); }
+  .stack-tight { display: flex; flex-direction: column; gap: 6px; }
+  .coords { font-family: var(--mono); font-size: var(--t-sm); }
+  .field-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .field-row > label { min-width: 0; }
+  .wide { width: 100%; }
+  .picker-note { color: var(--muted); font-size: var(--t-sm); }
+  .shortcut b { display: block; font-size: var(--t-lg); margin-bottom: 2px; }
+  .search-row { display: flex; gap: 8px; align-items: stretch; }
+  .search-row input { flex: 1 1 auto; min-width: 0; font-size: var(--t-lg); padding: 12px 14px; }
+  .search-row .btn { padding: 12px 18px; font-size: var(--t-md); }
+  .cols2.solo { grid-template-columns: minmax(0, 1fr); }
+  .fold-body { margin-top: 12px; }
+  details.fold > summary { cursor: pointer; }
+  details.fold > summary:hover h2 { text-decoration: underline; }
+  @media (max-width: 700px) { .shelter3 { grid-template-columns: 1fr; } .search-row { flex-wrap: wrap; } .search-row .btn { width: 100%; } }
+  @media print { .shelter3 > div { break-inside: avoid; } .noprint { display: none !important; } }
+</style>
+</head>
+<body class="topo">
+<div class="page">
+
+  <div id="loadMsg" class="banner" role="alert" hidden>
+    Your saved records could not be read. Gear, contacts and places may be missing. Reload this screen to try again.
+  </div>
+
+  <div id="bannerTop"></div>
+
+  <!-- picked scenario: top bar with the title and the compact picker -->
+  <div id="scenarioTop" class="stack" hidden>
+    <div class="row">
+      <button class="btn ghost noprint" type="button" data-go="home">Back to Home</button>
+      <h1 id="scenTitle"></h1>
+    </div>
+    <div class="row noprint" id="chipsTop"></div>
+  </div>
+
+  <!-- home: calm landing page -->
+  <div id="homeView" class="stack">
+    <div class="stack-tight">
+      <h1>Off-Grid Fieldbook</h1>
+      <p class="muted">Everything here works with no internet.</p>
+    </div>
+
+    <form id="searchForm" role="search">
+      <label class="sr-only" for="q">Search everything</label>
+      <div class="search-row">
+        <input id="q" type="search" autofocus enterkeyhint="search" placeholder="Search your records, manuals, plants and plan">
+        <button class="btn" type="submit">Search</button>
+      </div>
+    </form>
+
+    <div class="grid">
+      <button class="card shortcut" type="button" data-go="map"><b>Map</b><span class="muted">Offline map, terrain, your pins, Near me</span><span class="meta" id="stMap" hidden></span></button>
+      <button class="card shortcut" type="button" data-go="place"><b>My Place</b><span class="muted">Your water, gear, supplies and people</span><span class="meta" id="stPlace" hidden></span></button>
+      <button class="card shortcut" type="button" data-go="learn"><b>Learn</b><span class="muted">Manuals, guides and plants by problem</span></button>
+      <button class="card shortcut" type="button" data-go="plan"><b>Plan</b><span class="muted">Your 90-day plan and checklists</span><span class="meta" id="stPlan" hidden></span></button>
+    </div>
+    <div class="row"><button class="linkbtn" type="button" data-go="place/calc">Supplies calculator</button><button class="linkbtn" type="button" data-go="check">Check it works with no internet</button></div>
+
+    <div class="cols2" id="homeCols">
+      <div class="stack" id="leftCol">
+        <div class="card" id="setupCard" hidden>
+          <div class="spread"><h3>Set up your place</h3><span class="meta num" id="setupCount"></span></div>
+          <div id="setupList" class="stack-tight"></div>
+          <div class="row"><button class="btn ghost" type="button" data-go="place">Open My Place</button></div>
+        </div>
+        <div class="card" id="runwayCard" hidden><h3>How long will it last?</h3><div id="runway" class="stack-tight"></div></div>
+        <div class="card" id="dueCard" hidden><h3>Needs attention</h3><div id="due" class="stack-tight"></div></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3>Something happening?</h3>
+          <p class="picker-note">Pick one for the steps, your gear for it and the nearest help.</p>
+          <p id="pickErr" class="banner" hidden></p>
+          <div class="chips noprint" id="chips"></div>
+        </div>
+        <div class="card">
+          <h3>Heard on the radio</h3>
+          <div id="bulletins" class="stack-tight"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- picked scenario: the same columns as before -->
+  <div id="scenario"></div>
+
+  <details class="fold" id="rescueSec">
+    <summary><h2 id="rescueHead">Rescue card: tell someone where you are</h2></summary>
+    <div class="stack fold-body">
+      <div class="card" id="rescue"></div>
+      <p class="src">Compass bearings in this app are true north. Magnetic declination changes with where you are, so look it up for your area and write it on your printed card.</p>
+    </div>
+  </details>
+
+  <details class="fold" id="peopleSec">
+    <summary><h2 id="peopleHead">Our people and places</h2></summary>
+    <div class="cols2 fold-body">
+      <div class="card"><h3>Contacts</h3><div id="contacts" class="stack-tight"></div></div>
+      <div class="card"><h3>Meeting points and shutoffs</h3><div id="places" class="stack-tight"></div></div>
+    </div>
+  </details>
+
+  <details class="fold" id="checkedSec">
+    <summary><h2 id="checkedHead">Places you checked yourself</h2></summary>
+    <div class="card fold-body" id="checked"></div>
+  </details>
+
+  <div class="row noprint">
+    <button class="btn ghost" id="printBtn" type="button">Print this page</button>
+  </div>
+
+  <div id="bannerBottom"></div>
+
+  <!-- shelter-in-place banner: open at the top only for the radiation scenario, otherwise here at the bottom -->
+  <details class="banner" id="banner">
+    <summary>⚠ Radiation or chemical release, or told to shelter in place?</summary>
+    <div class="shelter3">
+      <div><b>Get inside.</b>The nearest solid building. Go to the basement or the middle of the building, away from windows.</div>
+      <div><b>Stay inside.</b>Close windows and doors. Turn off fans, AC and heat that pull in outside air. Stay put until officials say it's safe, usually at least 24 hours.</div>
+      <div><b>Stay tuned.</b>NOAA weather radio, local AM/FM or TV. Follow official instructions over anything saved in this app.</div>
+    </div>
+    <p class="src" style="margin-top:8px">Source: CDC "Get Inside, Stay Inside, Stay Tuned" (radiation emergencies). If you were outside: remove outer clothing, bag it, and shower or wipe exposed skin.</p>
+  </details>
+</div>
+
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = UI.esc;
+const LAYER_NAMES = {
+  hospitals: ["Hospital", "🏥"], fire: ["Fire station", "🚒"], drinking_water: ["Drinking water", "🚰"],
+  springs: ["Spring", "💧"], pharmacies: ["Pharmacy", "💊"], shelters: ["Shelter", "⛺"]
+};
+const TONE_WORD = { warn: "Warning", crit: "Emergency" };
+
+let scenarios = null;   // from data/scenarios.json, read once
+let token = 0;          // ignores answers that arrive after the route has changed
+let rec = [];           // this copy of the records
+let homeRec = null;     // the place with kind "home"
+let places = [];        // every record that has a point
+
+// ---------- small helpers ----------
+const ago = t => OG.ago(t);
+const dist = (a, b) => OG.miles(a, b);
+const hemi = (v, pos, neg) => v >= 0 ? pos : neg;
+
+// A record matches a scenario when its type is listed, or its kind (or contact role) is listed,
+// or its category is listed.
+function matches(r, rules) {
+  if (!rules) return false;
+  const f = r.fields || {};
+  if ((rules.types || []).includes(r.type)) return true;
+  if ((rules.kinds || []).includes(f.kind || f.role)) return true;
+  if ((rules.categories || []).includes(f.category)) return true;
+  return false;
+}
+
+function gearNumber(r) {
+  const f = r.fields || {};
+  if (r.type === "water_container") {
+    if (f.level_gal === undefined || f.level_gal === "") return "no level saved";
+    let t = `${f.level_gal} gal`;
+    if (+f.daily_draw_gal > 0) {
+      const days = Math.round(+f.level_gal / +f.daily_draw_gal);
+      t += `, ${days} days (${f.draw_basis === "measured" ? "measured" : "estimated"} use)`;
+    }
+    return t;
+  }
+  if (r.type === "supply") {
+    return f.qty === undefined || f.qty === "" ? "no count saved" : `${f.qty} ${f.unit || ""}`.trim();
+  }
+  if (r.type === "equipment") {
+    if (f.capacity_wh) return `${f.capacity_wh} Wh`;
+    return f.test_result ? String(f.test_result) : "no capacity saved";
+  }
+  return "";
+}
+
+// ---------- scenario data ----------
+async function loadScenarios() {
+  if (!scenarios) scenarios = await UI.getJSON("data/scenarios.json");
+  return scenarios;
+}
+
+// ---------- region packs: which layer files to read ----------
+async function loadPacks() {
+  try { const p = await UI.getJSON("/api/packs"); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+function activeRegion() {
+  try { return JSON.parse(localStorage.getItem("map:region") || "null"); } catch { return null; }
+}
+function layerUrl(id, packs, region) {
+  if (typeof region === "string" && region.startsWith("pack:")) {
+    const slug = region.slice(5);
+    if (packs.some(p => p.slug === slug)) return "/packs/" + encodeURIComponent(slug) + "/layers/" + encodeURIComponent(id) + ".geojson";
+  }
+  return "/maps/overlays/" + encodeURIComponent(id) + ".geojson";
+}
+
+// ---------- runway and due items (home) ----------
+function runwayRows(rows) {
+  const top = Math.max(1, ...rows.filter(x => x.days != null).map(x => x.days));
+  return rows.map(x => x.days == null
+    ? `<div class="line"><div>${esc(x.key)}</div><span class="meta">no daily use saved</span></div>`
+    : `<div class="stack-tight"><div class="spread"><span>${esc(x.key)}</span><span class="num">about ${Math.round(x.days)} days</span></div>
+       <div class="meter${x.basis === "estimated" ? " est" : ""}" role="img" aria-label="${esc(x.key)}: about ${Math.round(x.days)} days"><span style="width:${Math.min(100, x.days / top * 100).toFixed(1)}%"></span></div>
+       <span class="meta">${x.basis === "estimated" ? "Use rate is estimated" : "Use rate is measured"}</span></div>`).join("");
+}
+
+function renderRunway() {
+  const rows = OG.runway(rec);
+  $("#runwayCard").hidden = !rows.length;
+  $("#runway").innerHTML = rows.length ? runwayRows(rows) : "";
+}
+
+function renderDue() {
+  const due = OG.dueItems(rec);
+  $("#dueCard").hidden = !due.length;
+  $("#due").innerHTML = due.map(d => {
+    const pill = d.what === "Failed last test" ? { label: "failed", tone: "bad" }
+      : d.what === "Never tested" ? { label: "never tested", tone: "warn" }
+      : d.days < 0 ? { label: "overdue", tone: "bad" }
+      : { label: "in " + Math.round(d.days) + " days", tone: "warn" };
+    return `<button class="rowbtn" type="button" data-go="place/r=${esc(d.r.id)}">
+      <span><b>${esc(d.r.name)}</b><br><span class="meta">${esc(d.what)}</span></span>${UI.pill(pill)}</button>`;
+  }).join("");
+}
+
+// ---------- home: door status lines, setup card, layout ----------
+function setStatus(sel, text) { const box = $(sel); box.textContent = text; box.hidden = !text; }
+
+function renderDoorStatus() {
+  setStatus("#stMap", places.length ? `${places.length} of your places are on the map` : "");
+  const short = OG.runway(rec).find(x => x.days != null);
+  setStatus("#stPlace", short
+    ? `${short.key}: ${short.days < 1 ? "less than a day" : "about " + Math.round(short.days) + " days"}`
+    : "");
+}
+
+async function loadPlanStatus(my) {
+  let n = 0;
+  try { const m = await UI.getJSON("/api/manifest"); n = m && Array.isArray(m.docs) ? m.docs.length : 0; } catch { n = 0; }
+  if (my !== token) return;
+  setStatus("#stPlan", n === 1 ? "1 plan page" : n > 1 ? `${n} plan pages` : "");
+}
+
+function renderSetup() {
+  const fld = x => x.fields || {};
+  const steps = [
+    ["A home place", rec.some(x => x.type === "place" && fld(x).kind === "home")],
+    ["Water storage", rec.some(x => x.type === "water_container")],
+    ["Utility shutoff", rec.some(x => x.type === "place" && fld(x).kind === "utility shutoff")],
+    ["Equipment", rec.some(x => x.type === "equipment")],
+    ["Out-of-area contact", rec.some(x => x.type === "contact" && fld(x).role === "out-of-area contact")],
+  ];
+  const done = steps.filter(s => s[1]).length;
+  $("#setupCard").hidden = done === steps.length;
+  $("#setupCount").textContent = `${done} of ${steps.length} done`;
+  $("#setupList").innerHTML = steps.map(([label, ok]) =>
+    `<div class="line"><span>${esc(label)}</span>${UI.pill(ok ? { label: "done", tone: "good" } : { label: "not yet", tone: "muted" })}</div>`).join("");
+}
+
+// when every card in the left column is hidden, the right column takes the full width
+function layoutHome() {
+  const leftShown = ["#setupCard", "#runwayCard", "#dueCard"].some(id => !$(id).hidden);
+  $("#leftCol").hidden = !leftShown;
+  $("#homeCols").classList.toggle("solo", !leftShown);
+}
+
+// ---------- scenario view ----------
+function renderChips(list, sid, target) {
+  $(target).innerHTML = list.map(s => `<button class="chip" type="button" aria-pressed="${s.id === sid}" data-pick="${esc(s.id)}">${esc(s.title)}</button>`).join("");
+}
+
+function renderScenario(s) {
+  const mine = rec.filter(r => matches(r, s.records)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const steps = s.steps.map(t => `<li>${esc(t)}</li>`).join("");
+  const more = s.more.map(m => `<button class="linkbtn" type="button" data-go="${esc(m.route)}">${esc(m.label)}</button>`).join("");
+  const details = s.detail.map(d => {
+    const tone = d.tone ? ` ${esc(d.tone)}` : "";
+    const pill = d.tone ? `<span class="pill ${esc(d.tone)}">${esc(TONE_WORD[d.tone] || d.tone)}</span>` : "";
+    return `<div class="card detail${tone}"><div class="spread"><h3>${esc(d.title)}</h3>${pill}</div>
+      <ul>${d.items.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+  }).join("");
+  const left = `<div class="card">
+      <h3>Do this now</h3>
+      <ol class="steps">${steps}</ol>
+      <p class="src">Get fresh instructions from: ${esc(s.source)}. Official instructions win.</p>
+      ${more ? `<div class="row">${more}</div>` : ""}
+    </div>${details}`;
+  const gear = mine.length
+    ? mine.map(r => `<button class="rowbtn" type="button" data-go="place/r=${esc(r.id)}">
+        <span><b>${esc(r.name)}</b>${gearNumber(r) ? `<br><span class="meta num">${esc(gearNumber(r))}</span>` : ""}</span>
+        ${UI.pill(OG.statusOf(r))}</button>`).join("")
+    : `<p class="empty">${esc(s.empty)}</p>
+       <div class="row"><button class="btn ghost" type="button" data-go="place">Open My Place</button></div>`;
+  let runway = "";
+  if (s.runway) {
+    const rows = OG.runway(rec);
+    runway = `<div class="card"><h3>How long will it last?</h3>` + (rows.length
+      ? runwayRows(rows)
+      : `<p class="empty">${esc(s.empty)}</p>`) + `</div>`;
+  }
+  const right = `<div class="card"><h3>Your gear for this</h3>${gear}</div>${runway}
+    <div class="card" id="near"><h3>Nearest help</h3><p class="empty">Loading</p></div>`;
+  $("#scenario").innerHTML = `<div class="cols2"><div class="stack">${left}</div><div class="stack">${right}</div></div>`;
+}
+
+async function fillNearest(s, my) {
+  const box = $("#near");
+  if (!box) return;
+  if (!homeRec) {
+    box.innerHTML = `<h3>Nearest help</h3><p class="empty">Set a Home place in My Place to see distances.</p>`;
+    return;
+  }
+  const from = [homeRec.loc.lng, homeRec.loc.lat];
+  const packs = await loadPacks();
+  const region = activeRegion();
+  const parts = await Promise.all((s.layers || []).map(async id => {
+    const [label, icon] = LAYER_NAMES[id] || [id, ""];
+    try {
+      const r = await fetch(layerUrl(id, packs, region), { cache: "no-store" });
+      if (!r.ok) throw new Error("missing");
+      const fc = await r.json();
+      const feats = (fc.features || []).filter(f => f.geometry && Array.isArray(f.geometry.coordinates));
+      const near = feats.map(f => ({ f, d: dist(from, f.geometry.coordinates) })).sort((a, b) => a.d - b.d).slice(0, 3);
+      const rows = near.map(({ f, d }) => {
+        const name = (f.properties && f.properties.n) || label;
+        const ad = (f.properties && f.properties.ad) || "";
+        const ph = (f.properties && f.properties.ph) ? " · " + f.properties.ph : "";
+        const [lng, lat] = f.geometry.coordinates;
+        return `<div class="line"><div><b>${esc(name)}</b><div class="meta">${esc(ad)}${esc(ph)}</div></div>
+          <span class="num">${d.toFixed(1)} mi ${OG.compass(OG.bearing(from, [lng, lat]))}</span>
+          <button class="btn ghost" type="button" data-show="1" data-lng="${lng}" data-lat="${lat}" aria-label="Show ${esc(name)} on map">Show on map</button></div>`;
+      }).join("");
+      return `<div class="sub"><div class="eyebrow"><span aria-hidden="true">${icon}</span> ${esc(label)}</div>${rows || '<p class="empty">No points in this layer.</p>'}</div>`;
+    } catch {
+      return `<div class="sub"><div class="eyebrow">${esc(label)}</div><p class="empty">Not in this copy.</p></div>`;
+    }
+  }));
+  if (my !== token || box !== $("#near")) return;   // the route changed while this was loading
+  box.innerHTML = `<h3>Nearest help</h3>` + (parts.join("") || `<p class="empty">${esc(s.empty)}</p>`);
+}
+
+// ---------- radio bulletins ----------
+function renderBulletins() {
+  const bl = rec.filter(x => x.type === "bulletin").sort((a, b) => String(b.created).localeCompare(String(a.created))).slice(0, 6);
+  $("#bulletins").innerHTML = bl.length ? bl.map(b => {
+    const f = b.fields || {};
+    const meta = [f.heard_on, f.heard_by ? "heard by " + f.heard_by : "", f.area, "logged " + ago(b.created)].filter(Boolean).join(" · ");
+    return `<div class="line"><div><b>${esc(f.message || b.name)}</b><div class="meta">${esc(meta)}</div></div>${UI.pill(OG.statusOf(b))}</div>`;
+  }).join("")
+    : `<p class="empty">Heard something on the radio? Log it in My Place → Add → Bulletin, with who heard it and the area. Old ones fade out after a day.</p>`;
+}
+
+// ---------- rescue card ----------
+let point = null;   // { lat, lng, id, label }
+
+function parseManual(text) {
+  const m = String(text).match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const lat = +m[1], lng = +m[2];
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng, id: null, label: "manual" };
+}
+
+function showPoint() {
+  const coordBox = $("#coords"), say = $("#say");
+  if (!coordBox || !say) return;
+  if (!point) {
+    coordBox.innerHTML = `<p class="empty">No location saved yet</p>`;
+    say.textContent = "Save a Home place in My Place or on the map to fill this in.";
+    return;
+  }
+  const { lat, lng } = point;
+  const c = OG.coordLines(lat, lng);
+  coordBox.innerHTML = [["Decimal", c.dd], ["DMS", c.dms], ["DDM", c.ddm], ["UTM", c.utm], ["USNG", c.usng]]
+    .map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+  let rel = "";
+  if (homeRec && point.id !== homeRec.id) {
+    const hf = [homeRec.loc.lng, homeRec.loc.lat];
+    rel = ` That is ${dist(hf, [lng, lat]).toFixed(1)} miles ${OG.compass(OG.bearing(hf, [lng, lat]))} of our home.`;
+  }
+  const desc = $("#desc").value.trim();
+  const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const text = `Our location is latitude ${Math.abs(lat).toFixed(4)} ${hemi(lat, "north", "south")}, longitude ${Math.abs(lng).toFixed(4)} ${hemi(lng, "east", "west")}. U-S-N-G ${c.usng}.${rel}${desc ? " " + desc + "." : ""} Time ${time}.`;
+  say.innerHTML = `<b>Read this over the radio:</b> "${esc(text)}"`;
+}
+
+function renderRescue() {
+  const stored = UI.store.get("home:from", null);
+  const manualText = UI.store.get("home:manual", "");
+  const opts = places.map(p => `<option value="${esc(p.id)}"${p.id === (stored || (homeRec && homeRec.id)) ? " selected" : ""}>${esc(p.name)}</option>`).join("")
+    || `<option value="">No saved places</option>`;
+  $("#rescue").innerHTML = `
+    <div class="field-row">
+      <label class="field" for="from">From a saved place
+        <select id="from">${opts}</select>
+      </label>
+      <label class="field" for="manual">Or enter lat, lon
+        <input id="manual" type="text" inputmode="decimal" placeholder="lat, lon" value="${esc(manualText)}">
+      </label>
+    </div>
+    <div id="coords" class="stack-tight"></div>
+    <div id="say" class="say"></div>
+    <label class="field" for="desc">Landmark note
+      <input id="desc" class="wide" type="text" placeholder="e.g. white house, red door, north side of Main St" value="${esc(UI.store.get("home:landmark", ""))}">
+    </label>`;
+  const pick = places.find(p => p.id === stored) || homeRec || places[0] || null;
+  point = pick ? { lat: pick.loc.lat, lng: pick.loc.lng, id: pick.id, label: pick.name } : null;
+  const typed = parseManual(manualText);
+  if (typed) point = typed;
+
+  $("#from").onchange = e => {
+    UI.store.set("home:from", e.target.value);
+    UI.store.set("home:manual", "");
+    $("#manual").value = "";
+    const p = places.find(x => x.id === e.target.value);
+    point = p ? { lat: p.loc.lat, lng: p.loc.lng, id: p.id, label: p.name } : null;
+    showPoint();
+  };
+  $("#manual").onchange = e => {
+    const v = parseManual(e.target.value);
+    if (!v) {
+      if (e.target.value.trim()) UI.toast("Type two numbers, like 39.74, -104.99", true);
+      return;
+    }
+    UI.store.set("home:manual", e.target.value);
+    point = v;
+    showPoint();
+  };
+  $("#desc").oninput = e => { UI.store.set("home:landmark", e.target.value); showPoint(); };
+  showPoint();
+}
+
+// ---------- people and places ----------
+function renderPeople() {
+  const contacts = rec.filter(x => x.type === "contact")
+    .sort((a, b) => ((a.fields || {}).role === "out-of-area contact" ? 0 : 1) - (((b.fields || {}).role === "out-of-area contact") ? 0 : 1));
+  $("#contacts").innerHTML = contacts.length ? contacts.map(c => {
+    const f = c.fields || {};
+    const meta = [f.role, f.radio ? "Radio " + f.radio : "", f.checkin ? "check in " + f.checkin : ""].filter(Boolean).join(" · ");
+    return `<div class="line"><div><b>${esc(c.name)}</b><div class="meta">${esc(meta)}</div></div><span class="num">${esc(f.phone || "")}</span></div>`;
+  }).join("")
+    : `<p class="empty">Add contacts in My Place (type: Contact). Put your out-of-area contact first.</p>`;
+
+  const keyPlaces = rec.filter(x => x.type === "place" && /meeting|shutoff|breaker|first-aid|exit|key/.test((x.fields || {}).kind || ""));
+  $("#places").innerHTML = keyPlaces.length ? keyPlaces.map(p => {
+    const f = p.fields || {};
+    const n = (p.photos || []).length;
+    return `<button class="rowbtn" type="button" data-go="place/r=${esc(p.id)}"><span><b>${esc(p.name)}</b><br><span class="meta">${esc(f.where || f.kind || "")}</span></span><span class="meta">${n ? n + (n === 1 ? " photo" : " photos") : ""}</span></button>`;
+  }).join("")
+    : `<p class="empty">Add meeting points and the water, gas and power shutoffs in My Place, with a photo of each.</p>`;
+}
+
+function renderChecked() {
+  const mine = rec.filter(x => x.loc && (x.type === "shelter" || x.type === "water_source"));
+  $("#checked").innerHTML = mine.length ? mine.map(m => {
+    const s = OG.statusOf(m);
+    const verified = m.verified && m.verified.date ? "verified " + esc(m.verified.date) : "never verified";
+    const d = homeRec ? `<span class="num">${dist([homeRec.loc.lng, homeRec.loc.lat], [m.loc.lng, m.loc.lat]).toFixed(1)} mi</span>` : "";
+    return `<button class="rowbtn" type="button" data-go="place/r=${esc(m.id)}">
+      <span><b>${esc(OG.TYPES[m.type].icon)} ${esc(m.name)}</b><br><span class="meta">${esc(OG.TYPES[m.type].label)} · ${verified}</span></span>
+      <span class="spread" style="gap:8px">${UI.pill(s)}${d}</span></button>`;
+  }).join("")
+    : `<p class="empty">Shelters and water sources you have checked show here. Add one in My Place and mark it checked.</p>`;
+}
+
+// ---------- the one route handler ----------
+UI.onRoute(async rest => {
+  const sid = String(rest || "").trim();
+  const my = ++token;
+  let list = [];
+  let err = "";
+  try { list = await loadScenarios(); } catch { err = "The scenario list could not be read."; }
+
+  let bad = false, db = null;
+  try { db = await OG.load({ fresh: true }); bad = !!db.unread; } catch { bad = true; }
+  if (my !== token) return;
+
+  rec = db && Array.isArray(db.items) ? db.items : [];
+  homeRec = rec.find(x => x.type === "place" && x.loc && (x.fields || {}).kind === "home") || null;
+  places = rec.filter(x => x.loc);
+
+  try {
+    const s = list.find(x => x.id === sid) || null;
+    $("#loadMsg").hidden = !bad;
+    // the shelter banner sits at the top for a picked scenario and at the bottom of the home page
+    (s ? $("#bannerTop") : $("#bannerBottom")).append($("#banner"));
+    $("#banner").open = sid === "radiation";
+    $("#scenarioTop").hidden = !s;
+    $("#homeView").hidden = !!s;
+    $("#scenario").innerHTML = "";
+    $("#q").toggleAttribute("autofocus", sid === "");
+    document.querySelectorAll("details.fold").forEach(d => { d.open = !!s; });   // open in a picked scenario, closed on Home
+    if (s) {
+      $("#scenTitle").textContent = s.title;
+      renderChips(list, s.id, "#chipsTop");
+      renderScenario(s);
+    } else {
+      renderChips(list, "", "#chips");
+      $("#pickErr").hidden = !err;
+      $("#pickErr").textContent = err;
+      renderDoorStatus();
+      renderSetup();
+      renderRunway();
+      renderDue();
+      layoutHome();
+      renderBulletins();
+      loadPlanStatus(my);
+    }
+    renderRescue();
+    renderPeople();
+    renderChecked();
+    if (s) await fillNearest(s, my);
+  } catch (e) {
+    console.error(e);
+    $("#loadMsg").hidden = false;
+    $("#loadMsg").textContent = "This screen could not show your records. Reload it to try again.";
+  }
+});
+
+// ---------- clicks: one listener for every button on the page ----------
+document.addEventListener("click", e => {
+  const pick = e.target.closest("[data-pick]");
+  if (pick) {
+    const id = pick.dataset.pick;
+    const current = pick.getAttribute("aria-pressed") === "true";
+    UI.go(current ? "home" : "home/" + id);
+    return;
+  }
+  const go = e.target.closest("[data-go]");
+  if (go) { UI.go(go.dataset.go); return; }
+  const show = e.target.closest("[data-show]");
+  if (show) UI.tell({ og: "showOnMap", lng: +show.dataset.lng, lat: +show.dataset.lat });
+});
+
+$("#searchForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const text = $("#q").value.trim();
+  if (text) UI.go("search/" + text);
+});
+
+$("#printBtn").addEventListener("click", () => print());
+
+// collapsed sections would print empty, so open them for the print and put them back after
+let foldsWere = [];
+addEventListener("beforeprint", () => {
+  const folds = [...document.querySelectorAll("details.fold")];
+  foldsWere = folds.map(d => d.open);
+  folds.forEach(d => { d.open = true; });
+});
+addEventListener("afterprint", () => {
+  document.querySelectorAll("details.fold").forEach((d, i) => { d.open = !!foldsWere[i]; });
+});
+</script>
+</body>
+</html>

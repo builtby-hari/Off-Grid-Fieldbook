@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Place</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+html, body { height: 100%; }
+.frame { display: flex; flex-direction: column; height: 100%; }
+.tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); background: var(--side); flex: none; }
+.tab { appearance: none; background: none; border: 1px solid transparent; border-bottom: 0; border-radius: var(--r) var(--r) 0 0; padding: 8px 16px; margin-bottom: -1px; font-size: var(--t-md); font-weight: 600; color: var(--ink2); cursor: pointer; }
+.tab:hover { color: var(--ink); background: var(--chip); }
+.tab[aria-selected="true"] { background: var(--card); color: var(--ink); border-color: var(--line); box-shadow: inset 0 3px 0 var(--accent); }
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); flex: 1; min-height: 0; }
+.app.solo { grid-template-columns: minmax(0, 1fr); }
+.app.solo .side { display: none; }
+.side { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--card); }
+.side .top { padding: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.side .top .row > .btn { flex: 1; }
+.side .top .btn { justify-content: center; }
+.list { overflow: auto; flex: 1; padding: 4px 8px 16px; }
+.list h4 { margin: 12px 4px 4px; font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.it { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: center; padding: 7px 8px; border-radius: var(--r); cursor: pointer; }
+.it:hover { background: var(--chip); }
+.it.on { background: var(--chip); box-shadow: inset 3px 0 0 var(--accent); }
+.it b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.it .ic { font-size: 18px; text-align: center; }
+.it .pill { margin-top: 2px; }
+.main { overflow: auto; min-width: 0; }
+.main .page { max-width: 1050px; }
+.muted small, small.muted { font-size: var(--t-sm); }
+.est { font-size: var(--t-xs); font-weight: 600; padding: 1px 6px; border-radius: var(--r); border: 1px dashed var(--muted); color: var(--muted); white-space: nowrap; }
+.est.measured { border-style: solid; border-color: var(--good); color: var(--good); }
+.cardgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--gap); }
+.soon { opacity: .6; }
+.card-h { display: flex; flex-direction: column; gap: 8px; }
+.stepper { display: grid; grid-template-columns: 1fr 34px 60px 34px; gap: 6px; align-items: center; }
+.stepper input { text-align: center; padding: 5px 2px; }
+.stepper .btn { padding: 4px 0; justify-content: center; }
+.faces { font-size: 26px; letter-spacing: 2px; line-height: 1.4; }
+.segbar { display: flex; height: 34px; border-radius: var(--r-lg); overflow: hidden; gap: 2px; background: var(--card); }
+.segbar div { display: grid; place-items: center; color: var(--accent-ink); font-weight: 700; font-size: var(--t-sm); white-space: nowrap; overflow: hidden; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--t-sm); color: var(--ink2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.drill { display: flex; gap: 8px; align-items: flex-start; }
+.drill input { margin-top: 4px; }
+.due { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: var(--r); }
+.due:hover { background: var(--chip); }
+.todo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.todo li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.todo li:first-child { border-top: 0; padding-top: 0; }
+.todo .tick { text-align: center; font-weight: 700; color: var(--ink2); }
+.todo small { display: block; color: var(--muted); font-size: var(--t-sm); }
+.todo .act { display: flex; gap: 8px; align-items: center; }
+.head { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.head .big-ic { font-size: 40px; line-height: 1; }
+.head .t { flex: 1; min-width: 240px; }
+input.name { font-size: var(--t-xl); font-weight: 700; border-color: transparent; background: transparent; padding: 2px 4px; width: 100%; }
+input.name:hover, input.name:focus { border-color: var(--line); background: var(--card); }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px 14px; }
+.form .wide { grid-column: 1 / -1; }
+.coords { font-family: var(--mono); font-size: var(--t-sm); color: var(--ink2); background: var(--chip); border-radius: var(--r); padding: 8px 10px; display: grid; gap: 2px; }
+.photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.photos figure { margin: 0; width: 150px; }
+.photos img, .photos video { width: 150px; height: 110px; object-fit: cover; border-radius: var(--r); border: 1px solid var(--line); display: block; }
+.pbtn { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; }
+.photos figcaption { font-size: var(--t-xs); color: var(--muted); }
+.photos a.file { display: grid; place-items: center; width: 150px; height: 110px; border: 1px dashed var(--line); border-radius: var(--r); color: var(--ink2); }
+.links { display: flex; flex-wrap: wrap; gap: 6px; }
+.item { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); font-size: var(--t-sm); }
+.linkbtn { appearance: none; border: 0; background: none; padding: 0; color: var(--link); font: inherit; font-weight: 600; cursor: pointer; }
+.linkbtn.x { color: var(--muted); font-weight: 400; }
+.log { border-left: 3px solid var(--line); margin-left: 6px; padding-left: 14px; }
+.log .e { position: relative; margin: 0 0 12px; }
+.log .e::before { content: ""; position: absolute; left: -21px; top: 5px; width: 11px; height: 11px; border-radius: 50%; background: var(--card); border: 3px solid var(--accent); }
+.log .e.status::before { border-color: var(--warn); }
+.log .e small { color: var(--muted); display: block; font-size: var(--t-xs); }
+.typeset { margin-top: 4px; }
+.typeset .chip { display: grid; gap: 4px; justify-items: center; }
+.typeset .chip span { font-size: 22px; }
+dialog img { max-width: 86vw; max-height: 80vh; }
+#saveState { margin-left: auto; align-self: center; font-size: var(--t-sm); color: var(--muted); padding-right: 4px; }
+#saveState.bad { color: var(--crit, var(--bad)); font-weight: 600; }
+.addlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
+.addopt { appearance: none; display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); color: var(--ink); font: inherit; cursor: pointer; }
+.addopt:hover, .addopt:focus-visible { border-color: var(--accent); background: var(--chip); }
+.addopt .ic { font-size: 22px; text-align: center; }
+.addopt b { display: block; } .addopt small { color: var(--ink2); font-size: var(--t-sm); }
+.where .mono { font-family: var(--mono); font-size: var(--t-sm); color: var(--ink2); }
+.where { display: flex; flex-direction: column; gap: 8px; }
+.btn.big { padding: 10px 18px; font-size: var(--t-md); }
+details.sec { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); }
+details.sec > summary { cursor: pointer; padding: 11px 14px; list-style-position: inside; }
+details.sec > summary:hover { background: var(--chip); border-radius: var(--r-lg); }
+.secbody { padding: 4px 14px 14px; }
+.foot { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.dlgbody { display: flex; flex-direction: column; gap: 12px; min-width: min(520px, 86vw); }
+@media print { .side, .tabs, .noprint, .btn, .calc-top, .calc-inputs { display: none !important; } .app { display: block; } .frame { height: auto; } }
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav class="tabs noprint" role="tablist" aria-label="My Place sections">
+    <button class="tab" type="button" role="tab" data-tab="stuff" aria-selected="true">My stuff</button>
+    <button class="tab" type="button" role="tab" data-tab="calc" aria-selected="false">Calculators</button>
+    <button class="tab" type="button" role="tab" data-tab="drills" aria-selected="false">Drills</button>
+    <span id="saveState" role="status" aria-live="polite"></span>
+  </nav>
+  <div class="app" id="app">
+    <aside class="side">
+      <div class="top">
+        <label class="sr-only" for="q">Search everything you saved</label>
+        <input id="q" type="search" placeholder="Search everything you saved…">
+        <div class="row"><button class="btn" id="new" type="button">+ Add something</button></div>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+    <main class="main"><div class="page" id="view"></div></main>
+  </div>
+</div>
+<dialog id="dlg" aria-label="Dialog"></dialog>
+<script src="og.js"></script>
+<script src="ui.js"></script>
+<script>
+"use strict";
+const $ = UI.$, esc = UI.esc;
+let DB = null, cur = null;
+const GUIDES = [
+  ["Make water safe (diagram)", "learn/guide-purify"], ["Water: how much you need", "learn/guide-water"], ["Power setups", "learn/guide-power"],
+  ["Trauma first aid (MARCH)", "learn/guide-march"], ["Heat illness", "home/heat"], ["Cold and CO", "home/freeze"],
+  ["Radio channels", "learn/guide-radio"], ["When to leave", "home/evac"], ["Home", "home"]];
+const DRILL = [
+  "Leave the house: phone alone (home Mac off), open the family plan and the emergency screen",
+  "Search a manual for a fix (e.g. 'barrel bung leak') and open it",
+  "Find a route home that avoids a closed bridge",
+  "Tell someone exactly where the water shutoff is, with a photo",
+  "Find the fitting and spare for a leaking barrel",
+  "Estimate how long the fridge can run on stored power",
+  "Print a map and route card for someone whose phone died",
+  "Log a radio announcement and mark who heard it"];
+// The five basics for the overview checklist. "done" reads the records; "add" makes the first one.
+const START = [
+  { title: "Home", hint: "Where you live and how to get in.",
+    done: () => DB.items.some(r => r.type === "place" && r.fields?.kind === "home"),
+    add: () => askNew("place", { name: "Home", fields: { kind: "home" } }) },
+  { title: "Water storage", hint: "Barrels or tanks, and how much is in them.",
+    done: () => DB.items.some(r => r.type === "water_container"),
+    add: () => askNew("water_container", { name: "Rain barrel or tank" }) },
+  { title: "Water shutoff", hint: "Where the main water valve is and how to close it.",
+    done: () => DB.items.some(r => r.type === "place" && r.fields?.kind === "utility shutoff"),
+    add: () => askNew("place", { name: "Main water shutoff", fields: { kind: "utility shutoff" } }) },
+  { title: "Power station or generator", hint: "What keeps your lights, fridge or radio on.",
+    done: () => DB.items.some(r => r.type === "equipment"),
+    add: () => askNew("equipment", { name: "Power station" }) },
+  { title: "Out-of-area contact", hint: "Someone far away who can pass messages for the family.",
+    done: () => DB.items.some(r => r.type === "contact" && r.fields?.role === "out-of-area contact"),
+    add: () => askNew("contact", { name: "Out-of-area contact", fields: { role: "out-of-area contact" } }) }];
+// Left list groups, in order. Shelter is filed under Places.
+const GROUPS = ["Water", "Gear", "Supplies", "Places", "People"];
+const groupOf = r => r.type === "shelter" ? "Places" : (OG.TYPES[r.type]?.group || "Places");
+const TAB_ROUTE = { stuff: "place", calc: "place/calc", drills: "place/drills" };
+// Saving: quiet. A small line in the tab bar says where things stand, and other screens are told after each save.
+let saveT, shown = null;
+const saveState = (t, bad) => { const e = $("#saveState"); e.textContent = t; e.classList.toggle("bad", !!bad); };
+function saveNow() { clearTimeout(saveT); saveState("Saving…");
+  return OG.save().then(() => { saveState("All changes saved"); UI.tell({ og: "recordsChanged" }); }, e => { saveState("Couldn't save. Is the app still open?", true); UI.toast("Couldn't save!", true); throw e; }); }
+function saveSoon() { clearTimeout(saveT); saveState("Saving…"); saveT = setTimeout(() => saveNow().catch(() => {}), 500); }
+const badge = r => UI.pill(OG.statusOf(r));
+const byId = id => DB.items.find(x => x.id === id);
+function loadFailed() { $("#view").innerHTML = `<div class="banner">Couldn't read your saved records. Check that Off-Grid is running, then reopen this screen.</div>`; UI.toast("Couldn't read your records", true); }
+
+// Move the screen and the address together, so Back and Forward work.
+// "shown" stops the address change from drawing the same view a second time (that redraw used to wipe what you were typing).
+function showRecord(id) { shown = "r=" + id; open(id); UI.go("place/r=" + id); setTimeout(() => shown = null, 400); }
+function showOverview() { shown = ""; overview(); UI.go("place"); setTimeout(() => shown = null, 400); }
+
+// Which tab is showing. The calculator and drills tabs use the full width, so the record list is hidden there.
+function setTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+  $("#app").classList.toggle("solo", name !== "stuff");
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => UI.go(TAB_ROUTE[t.dataset.tab]));
+
+// Keyboard: Enter and Space press any element with role="button".
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches('[role="button"]')) { e.preventDefault(); e.target.click(); }
+});
+
+// ---------- list ----------
+function renderList() {
+  const q = $("#q").value.trim().toLowerCase();
+  const items = DB.items.filter(r => !q || JSON.stringify(r).toLowerCase().includes(q));
+  const groups = {}; items.forEach(r => (groups[groupOf(r)] ||= []).push(r));
+  $("#list").innerHTML = GROUPS.filter(g => groups[g]).map(g => `<h4>${esc(g)} · ${groups[g].length}</h4>` + groups[g].sort((a, b) => String(a.name).localeCompare(String(b.name))).map(r =>
+    `<div class="it${cur && cur.id === r.id ? " on" : ""}" role="button" tabindex="0" data-id="${esc(r.id)}"><span class="ic" aria-hidden="true">${OG.TYPES[r.type]?.icon || "📍"}</span><div><b>${esc(r.name || "No name")}</b>${badge(r)}${PIN_FIRST.includes(r.type) && !r.loc ? ` <span class="muted small">not on map</span>` : ""}</div></div>`).join("")).join("")
+    || `<div class="empty">${q ? "No matches." : "Nothing saved yet. Press + Add something."}</div>`;
+}
+$("#list").onclick = e => { const it = e.target.closest(".it"); if (it) showRecord(it.dataset.id); };
+$("#q").oninput = renderList;
+
+// ---------- My stuff overview: checklist, runway, needs attention ----------
+function overview() {
+  cur = null; setTab("stuff"); renderList();
+  const rw = OG.runway(DB.items), due = OG.dueItems(DB.items);
+  const max = Math.max(30, ...rw.map(x => x.days || 0));
+  const doneN = START.filter(s => s.done()).length;
+  const todo = START.map((s, i) => { const ok = s.done();
+    return `<li><span class="tick" aria-hidden="true">${ok ? "✓" : "○"}</span><div><b>${esc(s.title)}</b><small>${esc(s.hint)}</small></div>
+      <span class="act">${ok ? `<span class="pill good">Done</span>` : `<span class="pill muted">Not yet</span><button class="btn ghost" type="button" data-start="${i}" aria-label="Add: ${esc(s.title)}">Add</button>`}</span></li>`; }).join("");
+  $("#view").innerHTML = `<h1>My Place</h1>
+    <p class="muted">Your water, gear, supplies, places and people. Saved on this Mac only, with automatic backups.</p>
+    ${doneN < START.length ? `<section class="card" aria-labelledby="startH">
+      <h2 id="startH">Start with these 5</h2>
+      <p class="muted small">${doneN} of ${START.length} done</p>
+      <ul class="todo">${todo}</ul></section>`
+      : `<p class="muted">Basics are in.</p>`}
+    <div class="row"><button class="btn" type="button" id="addMain">+ Add something</button><span class="muted small">Click anything in the list on the left to open or change it.</span></div>
+    ${rw.length ? `<div>
+      <h2>How long will it last?</h2>
+      <p class="muted small" style="margin-top:4px">Days left at the current use rate. <span class="est">striped = estimated</span> <span class="est measured">solid = measured</span></p>
+      <div class="bars" style="margin-top:8px">${rw.map(x => `<span class="lab" title="${esc(x.have)} on hand, ${esc(x.use)} per day">${esc(x.key)}</span>
+        <div class="meter${x.basis === "estimated" ? " est" : ""}" title="${esc(x.have)} on hand, ${esc(x.use)} per day"><span style="width:${x.days == null ? 0 : Math.min(100, x.days / max * 100)}%"></span></div>
+        <span class="val">${x.days == null ? "no use rate set" : (x.basis === "estimated" ? "about " : "") + (x.days < 10 ? x.days.toFixed(1) : Math.round(x.days)) + " days"}</span>`).join("")}</div>
+      <p class="muted small" style="margin-top:8px">Runs out first: <b>${esc(rw.find(x => x.days != null)?.key || "nothing tracked yet")}</b>. Leaking containers are left out.</p>
+    </div>` : ""}
+    ${due.length ? `<div>
+      <h2>Needs attention</h2>
+      ${due.map(d => `<div class="due" role="button" tabindex="0" data-id="${esc(d.r.id)}"><span aria-hidden="true">${OG.TYPES[d.r.type].icon}</span><span><b>${esc(d.r.name)}</b> · ${esc(d.what)}</span>
+        <span class="pill ${d.days < 0 ? "bad" : "warn"}">${d.days === -999 ? "failed" : d.days < 0 ? "overdue" : "in " + Math.round(d.days) + " days"}</span></div>`).join("")}
+    </div>` : ""}`;
+  $("#view").querySelectorAll(".due").forEach(d => d.onclick = () => showRecord(d.dataset.id));
+  $("#view").querySelectorAll("[data-start]").forEach(b => b.onclick = () => START[+b.dataset.start].add());
+  $("#addMain").onclick = newDialog;
+}
+// ---------- readiness drills (own tab) ----------
+function drills() {
+  cur = null; setTab("drills"); renderList();
+  $("#view").innerHTML = `<h1>Readiness drills</h1>
+    <p class="muted" style="margin:4px 0 8px">Do this with the router unplugged, the phone in airplane mode and both restarted. Anything you can't do is a gap to fix.</p>
+    <div class="card" id="drill">${DRILL.map((d, i) => `<label class="drill"><input type="checkbox" data-d="${i}"><span>${esc(d)}</span></label>`).join("")}
+      <div class="row noprint" style="margin-top:8px"><label class="sr-only" for="dnote">What failed or was slow?</label><input id="dnote" placeholder="What failed or was slow?" style="flex:1"><button class="btn" id="dsave" type="button">Save result</button></div>
+      <div id="dhist"></div></div>`;
+  const hist = () => { const t = DB.drills || []; const last = t[0];
+    const age = last ? (Date.now() - Date.parse(last.t)) / 864e5 : null;
+    $("#dhist").innerHTML = last ? `<span class="pill ${last.passed === DRILL.length ? "good" : "bad"}">${last.passed} of ${DRILL.length} passed</span> <span class="pill ${age > 90 ? "warn" : "info"}">last done ${OG.ago(last.t)}</span>`
+      + t.slice(0, 5).map(x => `<div class="muted small" style="margin-top:4px">${new Date(x.t).toLocaleDateString()} · ${x.passed}/${DRILL.length}${x.note ? " · " + esc(x.note) : ""}</div>`).join("")
+      : `<span class="pill muted">never done</span>`; };
+  hist();
+  $("#dsave").onclick = () => { const n = [...document.querySelectorAll("[data-d]")].filter(c => c.checked).length;
+    (DB.drills ||= []).unshift({ t: OG.now(), passed: n, failed: [...document.querySelectorAll("[data-d]")].filter(c => !c.checked).map(c => DRILL[+c.dataset.d]), note: $("#dnote").value.trim() });
+    saveSoon(); $("#dnote").value = ""; document.querySelectorAll("[data-d]").forEach(c => c.checked = false); hist(); };
+}
+
+// ---------- calculators (own tab) ----------
+// Rates: FEMA/Ready.gov 1 gal water per person per day (half drinking, half cooking and washing), doubled in heat.
+// Calories: USDA Dietary Guidelines ranges (moderately active). Pet water about 1 oz per lb of body weight per day.
+const CALC_DEF = { adults: 2, kids: 0, seniors: 0, babies: 0, dogsS: 0, dogsL: 0, cats: 0, days: 14, heat: true, hygiene: true, meds: 0 };
+const PEOPLE = [["adults", "Adults", "🧑", 2200, 1], ["kids", "Kids (4 to 13)", "🧒", 1600, 1], ["seniors", "Seniors (65+)", "🧓", 1800, 1], ["babies", "Babies and toddlers", "👶", 1000, 0.5]];
+const PETS = [["dogsS", "Small dogs (under 25 lb)", "🐕", 0.15, 0.25], ["dogsL", "Big dogs (25 lb and up)", "🦮", 0.5, 0.75], ["cats", "Cats", "🐈", 0.06, 0.15]];
+function calcNumbers(c) {
+  const ppl = PEOPLE.reduce((a, p) => a + (+c[p[0]] || 0), 0), d = +c.days || 0;
+  const heatX = c.heat ? 2 : 1;
+  const drink = PEOPLE.reduce((a, p) => a + (+c[p[0]] || 0) * p[4] * heatX, 0) * d;   // gal: drinking and cooking
+  const wash = c.hygiene ? ppl * 0.5 * d : 0;                                              // gal: basic washing on top
+  const petW = PETS.reduce((a, p) => a + (+c[p[0]] || 0) * p[3] * (c.heat ? 1.5 : 1), 0) * d;
+  const cal = PEOPLE.reduce((a, p) => a + (+c[p[0]] || 0) * p[3], 0) * d;
+  const petFood = PETS.reduce((a, p) => a + (+c[p[0]] || 0) * p[4], 0) * d;                // lb dry food
+  const water = drink + wash + petW;
+  return { ppl, d, drink, wash, petW, water, cal, petFood,
+    rice: cal * 0.40 / 1650, beans: cal * 0.25 / 1550, pb: cal * 0.15 / 2800, oil: cal * 0.10 / 11500, cans: cal * 0.10 / 400,
+    bleachOz: water * 8 * 0.05 / 29.57, tp: Math.ceil(ppl * d / 5), bags: Math.ceil(ppl * d / 2), soap: Math.ceil(ppl * d / 14),
+    aa: Math.ceil(ppl * 4 * d / 7), propane: Math.ceil(d / 2), meds: d + 7, drums: Math.ceil(water / 55), jugs: Math.ceil(water / 5) };
+}
+// Gallons for a quantity in a unit. null when the unit is not a known volume (bottles, cases, blank): never guess a size.
+function gallonsOf(qty, unit) {
+  const u = String(unit ?? "").trim().toLowerCase().replace(/\s+/g, " "), n = +qty || 0;
+  if (["gal", "gals", "gallon", "gallons"].includes(u)) return n;
+  if (["l", "liter", "liters", "litre", "litres"].includes(u)) return n * 0.264172;
+  if (["qt", "quart", "quarts"].includes(u)) return n / 4;
+  if (["pt", "pint", "pints"].includes(u)) return n / 8;
+  if (["fl oz", "floz", "fluid ounce", "fluid ounces"].includes(u)) return n / 128;
+  if (u === "ml") return n * 0.000264172;
+  return null;
+}
+// Water on hand, in gallons, split by what it is for. notCounted lists what was left out and why.
+function haveNow() {
+  let drink = 0, house = 0;
+  const notCounted = [];
+  DB.items.forEach(x => {
+    const f = x.fields || {};
+    if (x.type === "water_container" && x.status !== "leaking") {
+      const use = String(f.use || "").trim(), gal = +f.level_gal || 0;
+      if (use === "drinking" || use === "cooking") drink += gal;
+      else if (use === "hygiene" || use === "pets") house += gal;
+      else notCounted.push({ r: x, why: use ? `use is "${use}"` : "use not set" });
+    }
+    if (x.type === "supply" && f.category === "drinking water") {
+      const g = gallonsOf(+x.qty || +f.qty || 0, f.unit);
+      if (g == null) notCounted.push({ r: x, why: f.unit ? `unit is "${f.unit}", not a volume` : "unit not set" });
+      else drink += g;
+    }
+  });
+  const cal = DB.items.filter(x => x.type === "supply" && x.fields.category === "food" && /cal/i.test(x.fields.unit || "")).reduce((a, x) => a + (+x.fields.qty || 0), 0);
+  return { drink, house, cal, notCounted };
+}
+const fmt = (n, dp = 0) => n >= 1000 ? Math.round(n).toLocaleString() : n.toFixed(n < 10 && dp ? dp : 0);
+function calculator() {
+  cur = null; setTab("calc"); renderList();
+  const c = Object.assign({}, CALC_DEF, DB.calc || {});
+  $("#view").innerHTML = `<div class="calc-top">
+      <h1>Calculators</h1>
+      <p class="muted">Work out how much water, food and gear you need. Pick one to use it.</p>
+      <div class="cardgrid">
+        <div class="card"><b>Supplies</b><span class="muted small">Water, food and gear for people and pets, for a set number of days.</span><span class="pill info">Showing</span></div>
+        <div class="card soon"><b>Battery runtime</b><span class="muted small">How long a battery or power station runs a load.</span><span class="pill muted">Coming next</span></div>
+        <div class="card soon"><b>Fridge on battery</b><span class="muted small">How long a fridge stays cold on stored power.</span><span class="pill muted">Coming next</span></div>
+      </div>
+    </div>
+    <h2>🧮 Supplies calculator</h2>
+    <div class="calc-inputs">
+    <p class="muted">Who you're preparing for, and for how long. The numbers update as you type and are saved. <span class="est">all numbers are estimates</span></p>
+    <div class="cardgrid">
+      <div class="card card-h"><h3>People</h3>${PEOPLE.map(([k, l, ic]) => stepper(k, ic, l, c[k])).join("")}</div>
+      <div class="card card-h"><h3>Pets</h3>${PETS.map(([k, l, ic]) => stepper(k, ic, l, c[k])).join("")}</div>
+      <div class="card card-h"><h3>How long</h3>
+        <div class="row">${[3, 14, 30, 90].map(d => `<button class="btn${+c.days === d ? "" : " ghost"}" type="button" data-days="${d}">${d} days</button>`).join("")}</div>
+        <label class="field">Or exact days <input type="number" min="1" max="365" data-k="days" value="${c.days}"></label>
+        <label class="row"><input type="checkbox" data-k="heat" ${c.heat ? "checked" : ""}> 🥵 Summer heat (doubles drinking and cooking water)</label>
+        <label class="row"><input type="checkbox" data-k="hygiene" ${c.hygiene ? "checked" : ""}> 🧼 Add water for basic washing</label></div>
+    </div>
+    </div>
+    <div id="calcOut"></div>`;
+  const saveCalc = () => { DB.calc = c; saveSoon(); draw(c); };
+  $("#view").querySelectorAll("[data-k]").forEach(i => i.oninput = () => { c[i.dataset.k] = i.type === "checkbox" ? i.checked : Math.max(0, +i.value || 0); if (i.dataset.k === "days") $("#view").querySelectorAll("[data-days]").forEach(b => b.classList.toggle("ghost", +b.dataset.days !== c.days)); saveCalc(); });
+  $("#view").querySelectorAll("[data-step]").forEach(b => b.onclick = () => { const k = b.dataset.step, inp = $(`[data-k="${k}"]`); c[k] = Math.max(0, (+c[k] || 0) + (+b.dataset.d)); inp.value = c[k]; saveCalc(); });
+  $("#view").querySelectorAll("[data-days]").forEach(b => b.onclick = () => { c.days = +b.dataset.days; $(`[data-k="days"]`).value = c.days; $("#view").querySelectorAll("[data-days]").forEach(x => x.classList.toggle("ghost", x !== b)); saveCalc(); });
+  draw(c);
+}
+function stepper(k, ic, label, v) {
+  return `<div class="stepper"><span>${ic} ${esc(label)}</span>
+    <button class="btn ghost" type="button" data-step="${k}" data-d="-1" aria-label="Remove one: ${esc(label)}">−</button><input type="number" min="0" data-k="${k}" value="${v}" aria-label="${esc(label)}"><button class="btn ghost" type="button" data-step="${k}" data-d="1" aria-label="Add one: ${esc(label)}">+</button></div>`;
+}
+function draw(c) {
+  const n = calcNumbers(c), h = haveNow();
+  if (!n.ppl && !PETS.some(p => +c[p[0]])) { $("#calcOut").innerHTML = `<p class="empty">Add at least one person or pet.</p>`; return; }
+  const who = PEOPLE.map(p => p[2].repeat(Math.min(+c[p[0]] || 0, 12))).join("") + PETS.map(p => p[2].repeat(Math.min(+c[p[0]] || 0, 6))).join("");
+  const hNeed = n.wash + n.petW;
+  const dDays = n.drink ? h.drink / (n.drink / n.d) : 0, hDays = hNeed ? h.house / (hNeed / n.d) : 0, cDays = n.cal ? h.cal / (n.cal / n.d) : 0;
+  const pct = (a, b) => Math.min(100, b ? a / b * 100 : 0);
+  const seg = [["Drinking and cooking", n.drink, "var(--bar)"], ["Washing", n.wash, "color-mix(in srgb, var(--bar) 55%, var(--card))"], ["Pets", n.petW, "var(--warn)"]].filter(x => x[1] > 0);
+  const item = (ic, label, val, unit, note) => `<div class="tile"><b>${ic} ${val} ${unit}</b><span>${label}</span>${note ? `<span class="small">${note}</span>` : ""}</div>`;
+  $("#calcOut").innerHTML = `
+    <div class="card" style="margin-top:14px"><div class="faces">${who}</div><p class="muted">${n.ppl} ${n.ppl === 1 ? "person" : "people"}${PETS.some(p => +c[p[0]]) ? " + pets" : ""} for <b>${n.d} days</b></p></div>
+
+    <h2 style="margin-top:18px">💧 Water: ${fmt(n.water)} gallons</h2>
+    <div class="segbar">${seg.map(([l, v, col]) => `<div title="${l}: ${fmt(v)} gal" style="flex:${v};background:${col}">${v / n.water > 0.12 ? l + " " + fmt(v) : ""}</div>`).join("")}</div>
+    <div class="legend" style="margin-top:6px">${seg.map(([l, v, col]) => `<span><i style="background:${col}"></i>${l}: ${fmt(v)} gal</span>`).join("")}</div>
+    <div class="cardgrid" style="margin-top:10px">
+      ${item("🛢️", "55-gal drums", n.drums, "drums")}${item("🚰", "or 5-gal jugs", n.jugs, "jugs")}${item("🧴", "6% bleach to treat it all", fmt(n.bleachOz, 1), "fl oz", "8 drops per gallon")}
+    </div>
+    <div class="card" style="margin-top:10px"><b>Drinking and cooking:</b> ${fmt(h.drink)} of ${fmt(n.drink)} gal
+      <div class="meter"><span style="width:${pct(h.drink, n.drink)}%;${h.drink >= n.drink ? "background:var(--good)" : ""}"></span></div>
+      <p class="muted small">${n.drink ? Math.round(pct(h.drink, n.drink)) + "% of the goal · lasts about " + dDays.toFixed(1) + " of " + n.d + " days" : "No drinking need for this group"}</p>
+      ${h.drink >= n.drink ? `<p style="color:var(--good)">✓ Covered.</p>` : `<p class="muted">Short <b>${fmt(n.drink - h.drink)} gal</b>. Add stored water under My stuff to track it.</p>`}</div>
+    <div class="card" style="margin-top:10px"><b>Washing and pets:</b> ${fmt(h.house)} of ${fmt(hNeed)} gal
+      <div class="meter"><span style="width:${pct(h.house, hNeed)}%;${h.house >= hNeed ? "background:var(--good)" : ""}"></span></div>
+      <p class="muted small">${hNeed ? Math.round(pct(h.house, hNeed)) + "% of the goal · lasts about " + hDays.toFixed(1) + " of " + n.d + " days" : "No washing or pet need for this group"}</p>
+      ${h.house >= hNeed ? `<p style="color:var(--good)">✓ Covered.</p>` : `<p class="muted">Short <b>${fmt(hNeed - h.house)} gal</b>. Add stored water under My stuff to track it.</p>`}</div>
+    ${h.notCounted.length ? `<div class="card" style="margin-top:10px"><b>Not counted</b>
+      ${h.notCounted.map(x => `<div class="row" style="justify-content:space-between;margin-top:6px"><button class="linkbtn" type="button" data-nc="${esc(x.r.id)}">${esc(x.r.name)}</button><span class="muted small">${esc(x.why)}</span></div>`).join("")}
+      <p class="muted small" style="margin-top:8px">Set the unit to gallons or liters, and set what the water is for, to count it.</p></div>` : ""}
+
+    <h2>🍚 Food: ${fmt(n.cal)} calories</h2>
+    <p class="muted">${fmt(n.cal / n.d)} calories a day for the group. One easy way to hit it:</p>
+    <div class="cardgrid">${item("🍚", "white rice (40%)", fmt(n.rice), "lb")}${item("🫘", "dry beans (25%)", fmt(n.beans), "lb")}${item("🥜", "peanut butter, 16 oz jars (15%)", fmt(n.pb), "jars")}${item("🫒", "cooking oil, 48 oz bottles (10%)", fmt(n.oil, 1), "bottles")}${item("🥫", "canned meals or veg (10%)", fmt(n.cans), "cans")}
+      ${n.petFood ? item("🦴", "dry pet food", fmt(n.petFood, 1), "lb") : ""}</div>
+    <div class="card" style="margin-top:10px"><b>What you have:</b> ${h.cal ? fmt(h.cal) + " calories" : "not tracked yet"}
+      <div class="meter"><span style="width:${pct(h.cal, n.cal)}%;${h.cal >= n.cal ? "background:var(--good)" : ""}"></span></div>
+      <p class="muted small">${h.cal ? Math.round(pct(h.cal, n.cal)) + "% · lasts about " + cDays.toFixed(1) + " days" : "Add a Supply (category food, unit 'cal') to compare"}</p></div>
+
+    <h2>🧰 Everything else</h2>
+    <div class="cardgrid">${item("🧻", "toilet paper rolls", n.tp, "rolls", "1 per person per 5 days")}${item("🗑️", "heavy trash bags (bucket toilet)", n.bags, "bags", "1 per 2 people a day")}
+      ${item("🧼", "bars of soap", n.soap, "bars")}${item("🔋", "AA batteries", n.aa, "AA", "lights and radio")}${item("🔥", "1 lb propane cans (camp stove)", n.propane, "cans", "2 hot meals a day")}${item("💊", "days of each prescription", n.meds, "days", "the time plus a week")}</div>
+    <div class="row noprint" style="margin-top:16px"><button class="btn" id="printList" type="button">🖨 Print shopping list</button></div>
+    <p class="src" style="margin-top:12px">Sources: Ready.gov and FEMA (1 gal per person per day, more in heat), USDA Dietary Guidelines (calories), CDC and EPA (bleach). Pet water about 1 oz per lb a day. Calorie values: rice 1,650/lb, beans 1,550/lb, peanut butter 2,800/jar, oil 11,500/bottle.</p>`;
+  $("#printList").onclick = () => print();
+  $("#calcOut").querySelectorAll("[data-nc]").forEach(b => b.onclick = () => UI.go("place/r=" + b.dataset.nc));
+}
+
+// ---------- new record: pick what it is, name it, and (for things with a spot) pin it straight away ----------
+const ADD = [
+  ["place", "A place", "Home, meeting spot, shutoff valve, spare key"],
+  ["water_container", "Stored water", "Barrels, tanks or jugs you already have"],
+  ["water_source", "Somewhere to get water", "Creek, well, tap, refill station"],
+  ["equipment", "Gear", "Generator, power station, radio, pump"],
+  ["supply", "Supplies", "Food, batteries, fuel, medicine"],
+  ["contact", "A person", "Family, neighbor, doctor, out-of-area contact"],
+  ["route", "A route", "A way to get somewhere, written down"],
+  ["shelter", "A shelter", "Somewhere to go if you have to leave"],
+  ["bulletin", "Something you heard", "A radio or neighbor announcement"]];
+// Types that live at a spot on the map. For these the pin comes first.
+const PIN_FIRST = ["place", "water_container", "water_source", "equipment", "shelter"];
+// The few fields shown up front for each type. Everything else is under "More details".
+const BASICS = {
+  place: ["kind", "where", "how"], water_container: ["capacity_gal", "level_gal", "use"], water_source: ["kind", "access_point", "treatment"],
+  shelter: ["kind", "route_a", "bring"], equipment: ["category", "model", "last_test"], supply: ["category", "qty", "unit", "expires"],
+  route: ["from", "to", "directions"], contact: ["role", "phone", "address"], bulletin: ["message", "heard_on", "heard_at"] };
+function newDialog() {
+  const d = $("#dlg");
+  d.innerHTML = `<div class="dlgbody"><h2>What are you adding?</h2><div class="addlist">${ADD.map(([k, l, h]) =>
+    `<button class="addopt" type="button" data-t="${k}"><span class="ic" aria-hidden="true">${OG.TYPES[k].icon}</span><span><b>${esc(l)}</b><small>${esc(h)}</small></span></button>`).join("")}</div>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" id="newCancel">Cancel</button></div></div>`;
+  d.querySelectorAll("[data-t]").forEach(b => b.onclick = () => askNew(b.dataset.t));
+  $("#newCancel").onclick = () => d.close();
+  if (!d.open) d.showModal();
+}
+$("#new").onclick = newDialog;
+// Step 2: one box for the name, then save. extra can carry a starting name and fields (the "Start with these 5" rows use it).
+function askNew(type, extra = {}) {
+  const d = $("#dlg"), T = OG.TYPES[type], pin = PIN_FIRST.includes(type), label = (ADD.find(a => a[0] === type) || [0, T.label])[1];
+  d.innerHTML = `<form class="dlgbody" id="newForm"><h2><span aria-hidden="true">${T.icon}</span> ${esc(extra.name ? "Add: " + extra.name : label)}</h2>
+    <label class="field">What do you call it?<input id="newName" value="${esc(extra.name || "")}" placeholder="${esc(label)}" autocomplete="off"></label>
+    ${pin ? `<p class="muted small">Next you click its spot on the map. You can skip that and do it later.</p>` : ""}
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" id="newCancel">Cancel</button>
+      ${pin ? `<button class="btn ghost" type="button" id="newPlain">Save without a pin</button><button class="btn" type="submit">Save and pin on the map</button>` : `<button class="btn" type="submit">Save</button>`}</div></form>`;
+  const make = toMap => { d.close(); create(type, Object.assign({}, extra, { name: $("#newName").value.trim() || extra.name || label }), toMap); };
+  $("#newForm").onsubmit = e => { e.preventDefault(); make(pin); };
+  if (pin) $("#newPlain").onclick = () => make(false);
+  $("#newCancel").onclick = () => d.close();
+  if (!d.open) d.showModal();
+  $("#newName").focus(); $("#newName").select();
+}
+async function create(type, extra = {}, toMap = false) {
+  const r = OG.blank(type, extra);
+  OG.addLog(r, "Created", "created"); DB.items.push(r);
+  if (!toMap) { saveSoon(); showRecord(r.id); return; }
+  // The map reads the record to show its name, so it has to be on disk before the map is asked.
+  try { await saveNow(); } catch { showRecord(r.id); return; }
+  showRecord(r.id); pinOnMap(r);
+}
+function pinOnMap(r) {
+  if (UI.inShell()) UI.tell({ og: "pickLocation", id: r.id });
+  else UI.toast("Open this inside the Off-Grid Fieldbook app to use the map", true);
+}
+
+// ---------- record detail ----------
+function field([key, label, kind, opts], obj, wide) {
+  const v = obj[key] ?? "";
+  const w = kind === "long" || wide ? " wide" : "";
+  if (kind === "select") return `<label class="field${w}">${esc(label)}<select data-f="${key}"><option value=""></option>${opts.map(o => `<option${o === v ? " selected" : ""}>${esc(o)}</option>`).join("")}</select></label>`;
+  if (kind === "long") return `<label class="field${w}">${esc(label)}<textarea data-f="${key}">${esc(v)}</textarea></label>`;
+  return `<label class="field${w}">${esc(label)}<input data-f="${key}" type="${kind === "num" ? "number" : kind === "date" ? "date" : "text"}" step="any" value="${esc(v)}"></label>`;
+}
+function summary(r) {
+  const f = r.fields;
+  if (r.type === "water_container" && +f.capacity_gal) {
+    const pct = Math.max(0, Math.min(100, (+f.level_gal || 0) / +f.capacity_gal * 100));
+    const days = +f.daily_draw_gal ? (+f.level_gal || 0) / +f.daily_draw_gal : null;
+    return `<div class="meter" title="Level"><span style="width:${pct}%"></span></div>
+      <p class="muted">${+f.level_gal || 0} of ${+f.capacity_gal} gal (${Math.round(pct)}%)</p>
+      <p class="muted">${days == null ? "Set a daily draw under More details to see days left." : `${f.draw_basis === "measured" ? "" : "About "}<b>${days.toFixed(1)} days</b> left for ${esc(f.use || "its use")} at ${esc(f.daily_draw_gal)} gal/day <span class="est ${f.draw_basis === "measured" ? "measured" : ""}">${esc(f.draw_basis || "estimated")}</span>`}
+      ${f.last_cleaned ? ` · cleaned ${OG.ago(f.last_cleaned)}` : ""}</p>`;
+  }
+  if (r.type === "equipment") {
+    const runtime = +f.capacity_wh && +f.watts ? (+f.capacity_wh * 0.85 / +f.watts) : null;
+    return runtime ? `<p class="muted">About <b>${runtime.toFixed(1)} h</b> at ${esc(f.watts)} W from ${esc(f.capacity_wh)} Wh (85% after inverter loss) <span class="est">estimated</span></p>` : "";
+  }
+  if (r.type === "supply" && +f.daily_use) return `<p class="muted">About <b>${((+f.qty || 0) / +f.daily_use).toFixed(1)} days</b> left at ${esc(f.daily_use)} ${esc(f.unit || "")}/day <span class="est ${f.use_basis === "measured" ? "measured" : ""}">${esc(f.use_basis || "estimated")}</span></p>`;
+  return "";
+}
+// Which fold-out sections are open. Kept while the screen is open, so a click elsewhere never snaps them shut.
+const openSec = new Set();
+const sec = (id, title, count, body) => `<details class="sec" data-sec="${id}"${openSec.has(id) ? " open" : ""}><summary><b>${esc(title)}</b>${count ? ` <span class="muted small">${esc(count)}</span>` : ""}</summary><div class="secbody">${body}</div></details>`;
+function whereCard(r) {
+  const c = r.loc ? OG.coordLines(r.loc.lat, r.loc.lng) : null;
+  return `<section class="card where" aria-labelledby="whereH"><h2 id="whereH">Where is it?</h2>
+    ${r.loc ? `<p><span class="pill good">On the map</span> <span class="mono">${esc(c.dd)}</span></p>
+      <div class="row noprint"><button class="btn" id="showmap" type="button">Show on map</button><button class="btn ghost" id="setloc" type="button">Move the pin</button><button class="btn ghost" id="clearloc" type="button">Remove the pin</button></div>
+      <details class="small"><summary class="muted">Coordinates in other formats</summary><div class="coords" style="margin-top:6px">${Object.entries(c).map(([k, v]) => `<span><b>${k.toUpperCase()}</b> ${esc(v)}</span>`).join("")}</div></details>`
+    : `<p class="muted">Not on the map yet. Press the button, then click the spot on the map.</p>
+      <div class="row noprint"><button class="btn big" id="setloc" type="button">📍 Pin on the map</button></div>`}</section>`;
+}
+function open(id) {
+  const same = cur && cur.id === id, top = same ? $(".main").scrollTop : 0;
+  cur = byId(id); if (!cur) return overview();
+  setTab("stuff"); renderList();
+  const r = cur, T = OG.TYPES[r.type];
+  const st = OG.STATUS[r.type] || OG.STATUS.place;
+  const basics = BASICS[r.type] || [], pinFirst = PIN_FIRST.includes(r.type);
+  const first = T.fields.filter(x => basics.includes(x[0])), rest = T.fields.filter(x => !basics.includes(x[0]));
+  const notes = OG.COMMON.find(x => x[0] === "notes"), common = OG.COMMON.filter(x => x[0] !== "notes");
+  const sum = summary(r);
+  $("#view").innerHTML = `
+    <div class="noprint"><button class="linkbtn" id="back" type="button">‹ All my stuff</button></div>
+    <div class="head"><span class="big-ic" aria-hidden="true">${T.icon}</span><div class="t">
+      <label class="sr-only" for="name">Name</label><input class="name" id="name" value="${esc(r.name)}" placeholder="Name">
+      <div class="row" style="margin-top:4px"><span id="badge">${badge(r)}</span><span class="muted small">${esc(T.label)} · changes save by themselves</span></div></div></div>
+    ${pinFirst ? whereCard(r) : ""}
+    <section class="card" aria-labelledby="basicsH"><h2 id="basicsH">The basics</h2>
+      <div id="sum">${sum}</div>
+      <div class="form">${first.map(x => field(x, r.fields)).join("")}${field(notes, r.fields)}</div></section>
+    ${pinFirst ? "" : whereCard(r)}
+    ${sec("more", "More details", "", `<div class="form">${rest.map(x => field(x, r.fields)).join("")}${common.map(x => field(x, r.fields)).join("")}</div>`)}
+    ${sec("cond", "Condition", OG.statusOf(r).label + (r.verified ? ", checked " + OG.ago(r.verified.date) : ""), `
+      <div class="row">${st.map(([k, l]) => `<button class="btn${r.status === k ? "" : " ghost"}" type="button" data-st="${k}" aria-pressed="${r.status === k}">${esc(l)}</button>`).join("")}</div>
+      <div class="row noprint" style="margin-top:8px"><label class="sr-only" for="vhow">How you checked</label><input id="vhow" placeholder="How you checked (saw it, called, tested…)" style="flex:1"><button class="btn ghost" id="verify" type="button">I checked it today</button></div>`)}
+    ${sec("photos", "Photos and files", r.photos.length ? String(r.photos.length) : "", `
+      <div class="photos" id="photos">${r.photos.map((p, i) => /\.(png|jpe?g|heic|webp)$/i.test(p.url) ? `<figure><button class="pbtn" type="button" data-i="${i}" aria-label="Open photo: ${esc(p.caption || "record photo")}"><img src="${esc(p.url)}" alt="${esc(p.caption || "Record photo")}"></button><figcaption>${esc(p.caption || "")} ${OG.ago(p.t)}</figcaption></figure>`
+        : /\.(mp4|mov)$/i.test(p.url) ? `<figure><video src="${esc(p.url)}" controls preload="none" aria-label="${esc(p.caption || "Record video")}"></video><figcaption>${esc(p.caption || "")}</figcaption></figure>` : `<figure><a class="file" href="${esc(p.url)}" target="_blank">📄 ${esc(p.caption || "file")}</a></figure>`).join("")}</div>
+      <div class="row noprint" style="margin-top:8px"><label class="sr-only" for="cap">Caption</label><input id="cap" placeholder="Caption first (optional), then choose the file" style="flex:1"><label class="sr-only" for="file">Choose photos, videos or files</label><input type="file" id="file" multiple accept="image/*,video/mp4,video/quicktime,application/pdf,audio/*" style="flex:1"></div>`)}
+    ${sec("links", "Guides and linked things", r.guides.length + r.links.length ? String(r.guides.length + r.links.length) : "", `
+      <div class="links" id="guides">${r.guides.map((g, i) => `<span class="item"><button class="linkbtn" type="button" data-href="${esc(g.href)}">📘 ${esc(g.label)}</button><button class="linkbtn x" type="button" data-gx="${i}" aria-label="Remove guide: ${esc(g.label)}">✕</button></span>`).join("") || `<span class="muted">No guides linked yet.</span>`}</div>
+      <div class="row noprint" style="margin-top:8px"><label class="sr-only" for="gpick">Link a guide</label><select id="gpick" style="flex:1"><option value="">Link a guide…</option>${GUIDES.map(([l, h]) => `<option value="${esc(h)}">${esc(l)}</option>`).join("")}<option value="search">Search the library for…</option></select></div>
+      <div class="row noprint" id="gsearch" hidden style="margin-top:8px"><label class="sr-only" for="gq">Search the library for</label><input id="gq" placeholder="Search the library for…" style="flex:1"><button class="btn" id="gqgo" type="button">Save and open</button><button class="btn ghost" id="gqcancel" type="button">Cancel</button></div>
+      <div class="links" id="rl" style="margin-top:12px">${r.links.map(id => byId(id)).filter(Boolean).map(x => `<span class="item"><button class="linkbtn" type="button" data-open="${x.id}">${OG.TYPES[x.type].icon} ${esc(x.name)}</button><button class="linkbtn x" type="button" data-lx="${x.id}" aria-label="Unlink: ${esc(x.name)}">✕</button></span>`).join("") || `<span class="muted">Nothing linked. For example, link a barrel to its pump.</span>`}</div>
+      <div class="row noprint" style="margin-top:8px"><label class="sr-only" for="lpick">Link another thing you saved</label><select id="lpick" style="flex:1"><option value="">Link another thing you saved…</option>${DB.items.filter(x => x.id !== r.id && !r.links.includes(x.id)).map(x => `<option value="${x.id}">${OG.TYPES[x.type].icon} ${esc(x.name)}</option>`).join("")}</select></div>`)}
+    ${sec("log", "History and notes over time", String(r.log.length), `
+      <div class="row noprint" style="margin-bottom:12px"><label class="sr-only" for="obs">What did you see or do?</label><input id="obs" placeholder="What did you see or do? (dated automatically)" style="flex:1"><button class="btn ghost" id="addobs" type="button">Add</button></div>
+      <div class="log">${r.log.map(e => `<div class="e ${esc(e.kind)}"><small>${new Date(e.t).toLocaleString()}</small>${esc(e.text)}</div>`).join("")}</div>`)}
+    <div class="row noprint foot"><button class="btn ghost" id="print" type="button">Print</button><button class="btn danger" id="del" type="button">Delete</button>
+      <span class="row" id="delAsk" hidden><span>Delete “${esc(r.name)}”? A backup is kept.</span><button class="btn danger" id="delYes" type="button">Yes, delete</button><button class="btn ghost" id="delNo" type="button">Cancel</button></span></div>`;
+  wire(r);
+  $(".main").scrollTop = top;
+}
+function openGuide(h) { if (h.startsWith("/hub/")) UI.tell({ og: "openGuide", href: h }); else UI.go(h); }
+function wire(r) {
+  const V = $("#view");
+  V.querySelectorAll("details[data-sec]").forEach(d => d.ontoggle = () => d.open ? openSec.add(d.dataset.sec) : openSec.delete(d.dataset.sec));
+  $("#back").onclick = showOverview;
+  $("#name").oninput = e => { r.name = e.target.value; r.updated = OG.now(); saveSoon(); renderList(); };
+  // Save as you type, so nothing is lost by clicking away. The summary line and the list follow along.
+  V.querySelectorAll("[data-f]").forEach(i => i.oninput = () => { r.fields[i.dataset.f] = i.type === "number" ? (i.value === "" ? "" : +i.value) : i.value; r.updated = OG.now(); saveSoon(); $("#sum").innerHTML = summary(r); });
+  V.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { const before = OG.statusOf(r).label; r.status = b.dataset.st; OG.addLog(r, `Status: ${before} → ${OG.statusOf(r).label}`, "status"); saveSoon(); open(r.id); });
+  $("#verify").onclick = () => { r.verified = { date: OG.now().slice(0, 10), how: $("#vhow").value || "checked" }; OG.addLog(r, "Verified: " + r.verified.how, "status"); saveSoon(); open(r.id); };
+  $("#del").onclick = () => { $("#del").hidden = true; $("#delAsk").hidden = false; $("#delNo").focus(); };
+  $("#delNo").onclick = () => { $("#delAsk").hidden = true; $("#del").hidden = false; $("#del").focus(); };
+  $("#delYes").onclick = () => { DB.items = DB.items.filter(x => x.id !== r.id); DB.items.forEach(x => x.links = x.links.filter(l => l !== r.id)); saveSoon(); showOverview(); };
+  $("#print").onclick = () => print();
+  // Anything typed in the last half second is written first, so the map sees the current name.
+  $("#setloc").onclick = () => saveNow().catch(() => {}).then(() => pinOnMap(r));
+  if ($("#showmap")) $("#showmap").onclick = () => UI.tell({ og: "showOnMap", lng: r.loc.lng, lat: r.loc.lat });
+  if ($("#clearloc")) $("#clearloc").onclick = () => { r.loc = null; OG.addLog(r, "Map pin removed", "note"); saveSoon(); open(r.id); };
+  $("#file").onchange = async e => {
+    for (const f of e.target.files) { try { const url = await OG.upload(f); r.photos.push({ url, caption: $("#cap").value || f.name, t: OG.now() }); OG.addLog(r, "Added file: " + ($("#cap").value || f.name), "note"); } catch { UI.toast("Upload failed", true); } }
+    saveSoon(); open(r.id);
+  };
+  $("#photos").onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; const p = r.photos[+b.dataset.i]; if (!p) return;
+    const d = $("#dlg");
+    d.innerHTML = `<img src="${esc(p.url)}" alt="${esc(p.caption || "Record photo")}"><div class="row" style="justify-content:space-between;margin-top:10px"><button class="btn danger" id="rmph" type="button">Remove photo</button><button class="btn ghost" id="closeph" type="button">Close</button></div>`;
+    $("#rmph").onclick = () => { r.photos.splice(+b.dataset.i, 1); saveSoon(); d.close(); open(r.id); };
+    $("#closeph").onclick = () => d.close();
+    d.showModal(); };
+  $("#gpick").onchange = e => { const h = e.target.value; if (!h) return;
+    if (h === "search") { $("#gsearch").hidden = false; e.target.value = ""; $("#gq").focus(); return; }
+    r.guides.push({ label: e.target.selectedOptions[0].textContent, href: h }); saveSoon(); open(r.id); };
+  $("#gqcancel").onclick = () => { $("#gsearch").hidden = true; $("#gq").value = ""; };
+  const addSearch = () => { const q = $("#gq").value.trim(); if (!q) { UI.toast("Type what to search for", true); return; }
+    const href = "wiki/search?pattern=" + encodeURIComponent(q);
+    r.guides.push({ label: "Library: " + q, href }); saveSoon(); $("#gq").value = ""; $("#gsearch").hidden = true; UI.go(href); };
+  $("#gqgo").onclick = addSearch;
+  $("#gq").onkeydown = e => { if (e.key === "Enter") addSearch(); };
+  $("#guides").onclick = e => {
+    const x = e.target.closest("[data-gx]"); if (x) { r.guides.splice(+x.dataset.gx, 1); saveSoon(); open(r.id); return; }
+    const a = e.target.closest("[data-href]"); if (a) openGuide(a.dataset.href);
+  };
+  $("#lpick").onchange = e => { const id = e.target.value; if (!id) return; r.links.push(id); const o = byId(id); if (o && !o.links.includes(r.id)) o.links.push(r.id); saveSoon(); open(r.id); };
+  $("#rl").onclick = e => { const x = e.target.closest("[data-lx]");
+    if (x) { r.links = r.links.filter(l => l !== x.dataset.lx); const o = byId(x.dataset.lx); if (o) o.links = o.links.filter(l => l !== r.id); saveSoon(); open(r.id); return; }
+    const o = e.target.closest("[data-open]"); if (o) showRecord(o.dataset.open); };
+  const addObs = () => { const t = $("#obs").value.trim(); if (!t) return; OG.addLog(r, t, "note"); saveSoon(); open(r.id); };
+  $("#addobs").onclick = addObs; $("#obs").onkeydown = e => { if (e.key === "Enter") addObs(); };
+}
+
+// ---------- messages from the shell: a point picked on the map, or a record opened from the map ----------
+UI.onMessage(m => {
+  if (m.og === "locationPicked") {
+    shown = "r=" + m.id; setTimeout(() => shown = null, 400);   // the shell also sends the address; this handler does the drawing
+    OG.load({ fresh: true }).then(db => { DB = db; const r = byId(m.id); if (!r) { UI.toast("That record is gone, so the pin was not saved", true); return overview(); }
+      r.loc = { lng: +(+m.lng).toFixed(6), lat: +(+m.lat).toFixed(6) }; OG.addLog(r, "Pinned on the map", "note");
+      open(r.id); UI.toast("Pinned on the map");
+      return saveNow(); }).catch(loadFailed);
+  }
+  if (m.og === "openRecord") {
+    OG.load({ fresh: true }).then(db => { DB = db; m.id && byId(m.id) ? showRecord(m.id) : showOverview(); }).catch(loadFailed);
+  }
+  // Another screen saved (a pin dropped on the map, say): pull it in and redraw the list.
+  if (m.og === "recordsChanged") OG.load({ fresh: true }).then(db => { DB = db; renderList(); if (!cur && $("#app").classList.contains("solo") === false) overview(); }).catch(() => {});
+});
+
+// ---------- the address decides the view: "" My stuff, "r=<id>" one record, "calc", "drills" ----------
+UI.onRoute(rest => {
+  rest = rest.replace(/^place\/?/, "");
+  if (rest === shown) { shown = null; return; }   // this screen just drew that view itself
+  shown = null;
+  const m = /^r=([\w-]+)/.exec(rest);
+  OG.load({ fresh: !!m }).then(db => {
+    DB = db;
+    if (rest === "calc") calculator();
+    else if (rest === "drills") drills();
+    else if (m && byId(m[1])) open(m[1]);
+    else overview();
+  }).catch(loadFailed);
+});
+</script>
+</body>
+</html>
