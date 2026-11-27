@@ -1,0 +1,1180 @@
+<title>Fieldbook Redesign</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a clickable copy of the app on the left, notes for the current screen on the right, the audit below.
+   Look: road-sign lettering for headings, the US public-agency typeface for text, and one trail-marker color per tab.
+   Signal orange is used for emergencies only. */
+:root {
+  --paper: #eceeea; --surface: #fbfbf8; --sunk: #dfe3de; --line: #c6cdc8;
+  --ink: #182124; --ink2: #47545a; --mark: #ffe38a;
+  --signal: #b93a08; --signal-bg: #fbe3d6; --on-signal: #ffffff;
+  --b-home: #3e4d55; --b-map: #1867ad; --b-place: #99590a; --b-learn: #2a7448; --b-plan: #6a3fb5;
+  --ok: #26703f; --ok-bg: #dcefe1; --due: #8f5200; --due-bg: #f8e8c6; --low: #b02a18; --low-bg: #f9dfd9;
+  --map-land: #e6eadf; --map-line: #b9a783; --map-water: #4d8fc4; --scrim: rgba(24, 33, 36, .38);
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "Public Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --paper: #111618; --surface: #1b2124; --sunk: #0c1012; --line: #313a3e;
+  --ink: #e9edeb; --ink2: #a9b4b4; --mark: #6a5410;
+  --signal: #ff8b52; --signal-bg: #3b2114; --on-signal: #2a0f02;
+  --b-home: #a8b8c0; --b-map: #6fb4f2; --b-place: #e3b24b; --b-learn: #72d29a; --b-plan: #baa0f5;
+  --ok: #7ed6a0; --ok-bg: #16331f; --due: #f1c05e; --due-bg: #3a2d10; --low: #ff9483; --low-bg: #44201a;
+  --map-land: #1a2220; --map-line: #5b5440; --map-water: #4f8fc2; --scrim: rgba(0, 0, 0, .55);
+} }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #111618; --surface: #1b2124; --sunk: #0c1012; --line: #313a3e;
+  --ink: #e9edeb; --ink2: #a9b4b4; --mark: #6a5410;
+  --signal: #ff8b52; --signal-bg: #3b2114; --on-signal: #2a0f02;
+  --b-home: #a8b8c0; --b-map: #6fb4f2; --b-place: #e3b24b; --b-learn: #72d29a; --b-plan: #baa0f5;
+  --ok: #7ed6a0; --ok-bg: #16331f; --due: #f1c05e; --due-bg: #3a2d10; --low: #ff9483; --low-bg: #44201a;
+  --map-land: #1a2220; --map-line: #5b5440; --map-water: #4f8fc2; --scrim: rgba(0, 0, 0, .55);
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1400px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 600; line-height: 1.08; margin: 0; text-wrap: balance; letter-spacing: .005em; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid var(--b-map); outline-offset: 2px; }
+.eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink2); }
+.kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--ink2); background: var(--surface); white-space: nowrap; }
+.ic { flex: none; }
+mark { background: var(--mark); color: var(--ink); border-radius: 2px; padding: 0 1px; }
+
+/* ---------- page head ---------- */
+.pagehead { display: flex; flex-wrap: wrap; gap: 12px 40px; align-items: flex-end; justify-content: space-between; }
+.pagehead h1 { font-size: clamp(38px, 5vw, 58px); font-weight: 700; text-transform: uppercase; letter-spacing: .01em; }
+.pagehead p { max-width: 62ch; color: var(--ink2); }
+.strip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.strip button { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 7px 11px; display: flex; gap: 8px; align-items: baseline; font-weight: 500; font-size: 14px; }
+.strip button .n { font-family: var(--mono); font-size: 11px; color: var(--ink2); }
+.strip button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.strip button[aria-pressed="true"] .n { color: inherit; opacity: .7; }
+.strip .gap { flex: 1; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 24px; align-items: start; }
+@media (max-width: 1080px) { .stage { grid-template-columns: 1fr; } }
+
+/* ---------- notes ---------- */
+.notes { display: flex; flex-direction: column; gap: 16px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+@media (max-width: 1080px) { .notes { position: static; } }
+.notes h2 { font-size: 30px; }
+.notes h3 { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink2); margin-bottom: 6px; }
+.notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.notes li { padding-left: 16px; position: relative; }
+.notes li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; background: var(--ink2); border-radius: 1px; }
+.tries { display: flex; flex-wrap: wrap; gap: 6px; }
+.tries button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 11px; font-size: 13px; }
+.tries button:hover { border-color: var(--ink); }
+
+/* ---------- the app window ---------- */
+.window { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); box-shadow: 0 14px 40px -22px rgba(0, 0, 0, .45); }
+.titlebar { height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--sunk); border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--ink2); }
+.titlebar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.titlebar span { margin-left: 8px; }
+.appwrap { container-type: inline-size; container-name: app; }
+.appwrap.phone { max-width: 390px; margin: 0 auto; }
+.app { position: relative; display: grid; grid-template-columns: 228px minmax(0, 1fr); height: 716px; overflow: hidden; background: var(--surface); }
+.appwrap.phone .app { height: 700px; }
+
+.side { background: var(--sunk); border-right: 1px solid var(--line); padding: 12px 10px 8px; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+.brand { display: flex; gap: 9px; align-items: center; padding: 0 6px; }
+.brand b { font-family: var(--display); font-size: 23px; font-weight: 700; text-transform: uppercase; line-height: 1; display: block; }
+.brand small { font-family: var(--mono); font-size: 10px; color: var(--ink2); letter-spacing: .06em; text-transform: uppercase; }
+.sos-btn { border: 0; background: var(--signal); color: var(--on-signal); border-radius: 7px; min-height: 44px; padding: 0 11px; display: flex; gap: 9px; align-items: center; font-weight: 700; font-size: 14px; text-align: left; }
+.sos-btn .kbd { margin-left: auto; background: transparent; color: inherit; border-color: currentColor; opacity: .85; }
+.find-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; min-height: 38px; padding: 0 10px; display: flex; gap: 8px; align-items: center; color: var(--ink2); font-size: 14px; text-align: left; }
+.find-btn .kbd { margin-left: auto; }
+.tabs { display: flex; flex-direction: column; gap: 2px; }
+.tab { border: 0; background: none; border-radius: 7px; min-height: 36px; padding: 0 9px; display: flex; gap: 10px; align-items: center; font-size: 15px; font-weight: 500; text-align: left; width: 100%; }
+.tab .ic { color: var(--c); }
+.tab .blaze { width: 6px; height: 18px; border-radius: 2px; background: var(--c); opacity: .35; }
+.tab:hover { background: var(--surface); }
+.tab[aria-current="page"] { background: var(--surface); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
+.tab[aria-current="page"] .blaze { opacity: 1; }
+.tab .kbd { margin-left: auto; }
+.subs { display: flex; flex-direction: column; padding: 1px 0 4px 25px; }
+.subs button { border: 0; background: none; text-align: left; padding: 3px 10px; font-size: 13px; color: var(--ink2); border-radius: 5px; border-left: 1px solid var(--line); border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.subs button:hover { color: var(--ink); background: var(--surface); }
+.side .grow { flex: 1; }
+.foot { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); padding-top: 6px; }
+.foot button { border: 0; background: none; text-align: left; padding: 5px 9px; border-radius: 6px; display: flex; gap: 10px; align-items: center; font-size: 13.5px; color: var(--ink2); }
+.foot button:hover { background: var(--surface); color: var(--ink); }
+.state { font-family: var(--mono); font-size: 10.5px; color: var(--ink2); padding: 6px 9px 0; display: flex; gap: 7px; align-items: center; }
+.state i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.state.warn i { background: var(--due); }
+
+.main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+.crumbs { display: flex; gap: 10px; align-items: center; padding: 0 22px; height: 46px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink2); }
+.crumbs .sq { width: 10px; height: 10px; border-radius: 2px; background: var(--c); }
+.crumbs b { color: var(--ink); font-weight: 600; }
+.crumbs .saved { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+.backbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; }
+.view { overflow: auto; padding: 24px 28px 36px; display: flex; flex-direction: column; gap: 22px; min-height: 0; }
+.view.flush { padding: 0; gap: 0; }
+.view h1 { font-size: 38px; text-transform: uppercase; font-weight: 700; }
+.view h2 { font-size: 24px; }
+.view h3 { font-size: 19px; }
+.sub { color: var(--ink2); max-width: 62ch; }
+.head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; justify-content: space-between; }
+.head > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; min-height: 38px; padding: 0 13px; display: inline-flex; gap: 8px; align-items: center; font-weight: 600; font-size: 14px; }
+.btn:hover { border-color: var(--ink); }
+.btn.pri { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pill { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.due { background: var(--due-bg); color: var(--due); } .pill.low { background: var(--low-bg); color: var(--low); }
+.cols2 { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; }
+.panel { border: 1px solid var(--line); border-radius: 9px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel.sos { background: var(--signal-bg); border-color: transparent; }
+.panel.sos .eyebrow { color: var(--signal); font-weight: 500; }
+.chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; min-height: 44px; padding: 6px 11px; font-weight: 600; font-size: 14px; text-align: left; }
+.chip:hover { border-color: var(--signal); }
+.linkbtn { border: 0; background: none; padding: 0; font-weight: 600; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
+.bars { display: flex; flex-direction: column; gap: 12px; }
+.bar { display: grid; grid-template-columns: 62px minmax(0, 1fr) 84px; gap: 10px; align-items: center; font-size: 14px; }
+.bar .track { position: relative; height: 14px; background: var(--sunk); border-radius: 3px; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--c); }
+.bar .goal { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.bar .days { font-family: var(--mono); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.bar small, .fine { color: var(--ink2); font-size: 12.5px; }
+.bar small { grid-column: 2 / -1; margin-top: -8px; }
+.rows { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.rowitem { display: flex; gap: 12px; align-items: center; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; width: 100%; font-size: 14.5px; }
+button.rowitem:hover { background: var(--sunk); }
+.rowitem .grow { flex: 1; min-width: 0; }
+.rowitem small { display: block; color: var(--ink2); font-size: 13px; }
+.rowitem .ic { color: var(--ink2); }
+
+/* emergency */
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 12px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; font-size: 18px; line-height: 1.35; font-weight: 500; }
+.steps li::before { content: counter(s); font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 38px; text-align: center; height: 38px; border-radius: 7px; background: var(--signal); color: var(--on-signal); }
+.menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--sunk); }
+.quote { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.quote .src { font-family: var(--mono); font-size: 11px; color: var(--ink2); }
+
+/* map */
+.mapbox { position: relative; flex: 1; min-height: 0; background: var(--map-land); }
+.mapbox canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.maptop { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: nowrap; gap: 8px; align-items: flex-start; pointer-events: none; }
+.maptop > * { pointer-events: auto; }
+.mapsearch { display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; height: 40px; flex: 1 1 140px; min-width: 110px; max-width: 260px; }
+.mapsearch input { border: 0; background: none; outline: none; font: inherit; color: inherit; width: 100%; min-width: 0; }
+.packchip { flex: none; white-space: nowrap; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; height: 40px; padding: 0 11px; display: flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; }
+.maptools { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.maptools .btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.drawer { position: absolute; top: 60px; right: 12px; bottom: 12px; width: min(270px, calc(100% - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.drawer label { display: flex; gap: 9px; align-items: center; font-size: 14px; min-height: 30px; }
+.drawer .dhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.drawer label.miss { color: var(--ink2); flex-wrap: wrap; }
+.drawer label.miss .linkbtn { font-size: 13px; }
+.swatch { flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.mapfoot { position: absolute; left: 12px; bottom: 12px; font-family: var(--mono); font-size: 10.5px; color: var(--ink2); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; }
+.mapbox.has-drawer .mapfoot { max-width: calc(100% - 306px); }
+.emptymap { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; }
+.emptymap .panel { max-width: 440px; background: var(--surface); gap: 14px; padding: 22px; }
+
+/* setup */
+.stepper { margin: 0; padding: 0; list-style: none; counter-reset: st; display: flex; flex-direction: column; gap: 18px; }
+.stepper > li { counter-increment: st; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; }
+.stepper > li::before { content: counter(st); font-family: var(--mono); font-size: 13px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--ink); display: grid; place-items: center; }
+.stepper > li > div { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.statelist { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; max-height: 132px; overflow: auto; border: 1px solid var(--line); border-radius: 7px; padding: 6px; }
+.statelist button { border: 0; background: none; text-align: left; padding: 5px 8px; border-radius: 5px; font-size: 14px; }
+.statelist button:hover { background: var(--sunk); }
+.statelist button[aria-pressed="true"], .opt[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.field { border: 1px solid var(--line); background: var(--surface); border-radius: 7px; height: 38px; padding: 0 11px; font: inherit; color: inherit; width: 100%; max-width: 320px; }
+.opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.opt { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+.opt b { font-size: 15px; }
+.opt[aria-pressed="true"] { border-color: var(--ink); }
+
+/* split screens */
+.split { display: grid; grid-template-columns: 250px minmax(0, 1fr); height: 100%; min-height: 0; }
+.split.plan { grid-template-columns: 190px minmax(0, 1fr); }
+.split.plan .detail { padding: 22px 18px 34px; }
+.split .list { border-right: 1px solid var(--line); overflow: auto; padding: 14px 10px; display: flex; flex-direction: column; gap: 10px; }
+.split .list h4 { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink2); padding: 6px 8px 2px; display: flex; gap: 7px; align-items: center; }
+.split .list .item { border: 0; background: none; border-radius: 6px; padding: 7px 8px; display: flex; gap: 8px; align-items: center; text-align: left; width: 100%; font-size: 14.5px; }
+.split .list .item span:first-child { flex: 1; min-width: 0; }
+.split .list .item:hover { background: var(--sunk); }
+.split .list .item[aria-current="true"] { background: var(--sunk); font-weight: 700; }
+.split .detail { overflow: auto; padding: 22px 26px 34px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.phone-only { display: none; }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 18px; margin: 0; font-size: 14.5px; }
+.facts dt { color: var(--ink2); } .facts dd { margin: 0; }
+.level { height: 16px; border-radius: 4px; background: var(--sunk); position: relative; overflow: hidden; }
+.level i { position: absolute; inset: 0 auto 0 0; background: var(--b-map); }
+.check { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 15.5px; }
+.check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--b-plan); }
+.check.done span { color: var(--ink2); text-decoration: line-through; }
+.check.hit { background: var(--mark); }
+.progress { height: 8px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--b-plan); }
+
+/* learn */
+.doors { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.door { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 12px; text-align: left; display: flex; flex-direction: column; gap: 5px; }
+.door:hover, .door[aria-pressed="true"] { border-color: var(--b-learn); }
+.door b { display: flex; gap: 8px; align-items: center; font-size: 16px; } .door b .ic { color: var(--b-learn); }
+.door small { color: var(--ink2); font-size: 13px; }
+.reader { max-width: 66ch; display: flex; flex-direction: column; gap: 14px; font-size: 17px; line-height: 1.6; }
+
+/* palette */
+.scrim { position: absolute; inset: 0; background: var(--scrim); display: flex; justify-content: center; align-items: flex-start; padding: 46px 16px 16px; z-index: 5; }
+.pal { width: min(640px, 100%); max-height: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .6); }
+.palin { display: flex; gap: 10px; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.palin input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: inherit; font-size: 18px; color: inherit; height: 54px; }
+.filters { flex: none; display: flex; gap: 5px; padding: 8px 12px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.filters button { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 2px 11px; font-size: 13px; white-space: nowrap; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.palout { overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.palout h4 { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink2); padding: 10px 8px 4px; }
+.fix { font-size: 13px; color: var(--ink2); padding: 4px 8px; }
+.res { border: 0; background: none; border-radius: 7px; padding: 8px; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 2px 10px; align-items: start; text-align: left; width: 100%; font-size: 14.5px; }
+.res .ic { color: var(--c, var(--ink2)); margin-top: 2px; }
+.res small { grid-column: 2 / -1; color: var(--ink2); font-size: 13px; }
+.res .where { font-family: var(--mono); font-size: 11px; color: var(--ink2); padding-top: 3px; }
+.res.sel { background: var(--sunk); box-shadow: inset 0 0 0 1px var(--line); }
+.res.best { border: 1px solid var(--line); padding: 12px; margin-bottom: 4px; }
+.res.best b { font-size: 17px; }
+.res.best ol { grid-column: 2 / -1; margin: 4px 0 0; padding-left: 18px; font-size: 14.5px; }
+.palfoot { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink2); }
+
+/* spreadsheet-style tables */
+.view > *, .split .detail > * { flex-shrink: 0; }
+.sheetbox { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.sheet { min-width: 640px; background: var(--surface); }
+.sheet th, .sheet td { border: 1px solid var(--line); padding: 0; vertical-align: middle; }
+.sheet thead th { padding: 6px 9px; }
+.sheet td.rn { width: 34px; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--ink2); background: var(--sunk); }
+.sheet input[type="text"], .sheet select { width: 100%; min-width: 0; height: 36px; border: 0; background: none; font: inherit; color: inherit; padding: 0 9px; border-radius: 0; }
+.sheet select { min-width: 108px; }
+.sheet textarea { display: block; width: 100%; min-height: 36px; border: 0; background: none; font: inherit; line-height: 1.35; color: inherit; padding: 8px 9px; border-radius: 0; resize: none; overflow: hidden; }
+.sheet.fit { table-layout: fixed; width: 100%; min-width: 540px; }
+.sheet.fit select { min-width: 0; padding: 0 4px 0 7px; }
+.sheet.fit thead th { padding: 6px 7px; }
+.sheet input[type="text"]:focus-visible, .sheet select:focus-visible, .sheet textarea:focus-visible { outline: 2px solid var(--b-map); outline-offset: -2px; background: var(--paper); }
+.sheet td.num { width: 80px; }
+.sheet td.calc .hint { display: inline-block; white-space: normal; line-height: 1.15; font-size: 12px; color: var(--ink2); padding: 3px 0; } .sheet td.num input { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sheet td.calc { padding: 0 9px; font-family: var(--mono); font-size: 13px; white-space: nowrap; background: var(--sunk); }
+.sheet td.ck { width: 42px; text-align: center; } .sheet td.ck input { width: 19px; height: 19px; accent-color: var(--b-plan); vertical-align: middle; }
+.sheet tr.hit td { background: var(--mark); }
+.sheet tr.hit td.rn { color: var(--ink); }
+.xbtn { border: 0; background: none; width: 34px; height: 34px; display: inline-grid; place-items: center; color: var(--ink2); border-radius: 5px; } .xbtn:hover { color: var(--low); background: var(--sunk); }
+.addbar { display: flex; gap: 9px; align-items: center; border: 1px solid var(--ink2); border-radius: 8px; background: var(--surface); padding: 0 11px; height: 46px; }
+.addbar input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: inherit; font-size: 16px; color: inherit; }
+.addbar:focus-within { outline: 3px solid var(--b-map); outline-offset: 2px; }
+.sugg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 30px; }
+.chipbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 11px 3px 8px; font-size: 13px; font-weight: 600; display: inline-flex; gap: 5px; align-items: center; } .chipbtn:hover { border-color: var(--ink); }
+.bar.wide { grid-template-columns: minmax(90px, 150px) minmax(0, 1fr) 74px; }
+.bar.wide > span:first-child { display: flex; gap: 6px; align-items: center; line-height: 1.2; overflow-wrap: anywhere; }
+.bar .track, .bar .fill, .bar .goal { display: block; }
+.barbtn { border: 0; background: none; width: 100%; text-align: left; padding: 7px 8px; border-radius: 6px; display: block; } .barbtn:hover, .barbtn[aria-pressed="true"] { background: var(--sunk); } .barbtn[aria-pressed="true"] { font-weight: 700; }
+.ring { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; font-weight: 600; }
+.stack { display: flex; gap: 3px; height: 26px; border-radius: 5px; overflow: hidden; font-size: 12px; font-weight: 700; }
+.stack span { display: grid; place-items: center; white-space: nowrap; padding: 0 8px; min-width: max-content; }
+.stack .ok { background: var(--ok-bg); color: var(--ok); } .stack .due { background: var(--due-bg); color: var(--due); } .stack .low { background: var(--low-bg); color: var(--low); }
+.tl { flex: 1; min-width: 250px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; }
+.tl > div { padding: 9px 12px; display: flex; flex-direction: column; gap: 6px; border-right: 1px solid var(--line); } .tl > div:last-child { border-right: 0; }
+.dots { display: flex; gap: 5px; flex-wrap: wrap; min-height: 14px; } .dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--b-plan); } .dots i.on { background: var(--b-plan); }
+
+#suprows td:nth-child(2) input[type="text"] { min-width: 215px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal > div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 74px; padding: 5px 6px; display: flex; flex-direction: column; gap: 1px; font-family: var(--mono); font-size: 10.5px; color: var(--ink2); min-width: 0; overflow: hidden; }
+.cal .wd { min-height: 0; text-transform: uppercase; letter-spacing: .08em; background: var(--sunk); }
+.cal .out { background: var(--sunk); }
+.cal .dn { font-family: var(--display); font-size: 20px; font-weight: 600; line-height: 1.1; color: var(--ink); align-self: flex-start; }
+.cal .today .dn { background: var(--ink); color: var(--paper); border-radius: 4px; padding: 0 6px; }
+.cal .due { color: var(--due); font-family: var(--body); font-weight: 700; font-size: 11px; line-height: 1.2; }
+.cal .moon { color: var(--ink); font-family: var(--body); font-weight: 600; }
+.clock { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.clock:last-child { border-bottom: 0; }
+.clock b { font-family: var(--mono); font-size: 23px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock small { grid-column: 1 / -1; }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--mono); font-size: 11px; fill: var(--ink2); }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+.flow > span { border: 1px solid var(--line); border-radius: 7px; padding: 8px 11px; font-size: 13.5px; font-weight: 600; background: var(--surface); display: flex; align-items: center; }
+.flow > i { display: flex; align-items: center; color: var(--ink2); font-style: normal; }
+.badge { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+button.mapfoot { cursor: pointer; text-align: left; line-height: 1.5; }
+.chartscroll { overflow-x: auto; }
+.facts.coords { font-family: var(--mono); font-size: 13px; grid-template-columns: minmax(0, 1fr); gap: 1px; } .facts.coords dt { font-family: var(--body); } .facts.coords dd { white-space: nowrap; margin-bottom: 7px; }
+.rowitem.off { color: var(--ink2); }
+.idea .more { color: var(--ink2); font-size: 12.5px; white-space: nowrap; }
+.toast { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 6; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 9px 15px; font-weight: 600; font-size: 14px; white-space: nowrap; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .6); }
+.toast[hidden] { display: none; }
+
+/* phone layout of the app */
+.topbar, .tabbar { display: none; }
+@container app (max-width: 900px) { .maptools .btn span { display: none; } }
+@container app (max-width: 960px) {
+  .split, .split.plan { grid-template-columns: minmax(0, 1fr); }
+  .split .list { display: none; border-right: 0; } .split.show-list .list { display: flex; } .split.show-list .detail { display: none; }
+  .phone-only { display: inline-flex; }
+  .rowitem.idea { flex-wrap: wrap; } .idea .more { flex-basis: 100%; padding-left: 36px; white-space: normal; text-decoration: underline; text-underline-offset: 3px; } .rowitem.idea > .ic { display: none; }
+}
+@container app (max-width: 640px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
+  .side { display: none; }
+  .topbar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--sunk); }
+  .topbar .brand { flex: 1; padding: 0; } .topbar .brand small { display: none; }
+  .topbar .sos-btn { min-height: 40px; padding: 0 9px; gap: 7px; font-size: 12.5px; line-height: 1.1; max-width: 136px; } .topbar .sos-btn .kbd, .topbar .find-btn span, .topbar .find-btn .kbd { display: none; }
+  .topbar .find-btn { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); background: var(--sunk); }
+  .tabbar button { border: 0; background: none; padding: 7px 2px 8px; display: flex; flex-direction: column; gap: 2px; align-items: center; font-size: 11px; font-weight: 600; color: var(--ink2); min-height: 52px; }
+  .tabbar button[aria-current="page"] { color: var(--ink); box-shadow: inset 0 3px 0 var(--c); }
+  .tabbar button .ic { color: var(--c); }
+  .crumbs { padding: 0 14px; height: 42px; } .crumbs .saved { display: none; }
+  .view { padding: 18px 16px 28px; } .view h1 { font-size: 32px; }
+  .cols2, .opts { grid-template-columns: minmax(0, 1fr); }
+  .steps li { font-size: 17px; }
+  .split .list { display: none; border-right: 0; } .split.show-list .list { display: flex; } .split.show-list .detail { display: none; }
+  .split .detail, .split.plan .detail { padding: 18px 16px 28px; }
+  .phone-only { display: inline-flex; }
+  .scrim { padding: 0; } .pal { border-radius: 0; height: 100%; border: 0; }
+  .maptop { flex-wrap: wrap; } .mapsearch { flex: 1 1 100%; max-width: none; }
+  .drawer { top: auto; left: 12px; right: 12px; bottom: 12px; width: auto; max-height: 58%; }
+  .mapfoot { max-width: calc(100% - 24px); } .mapbox.has-drawer .mapfoot { display: none; }
+  .toast { bottom: 68px; }
+}
+
+/* ---------- audit ---------- */
+.audit { display: flex; flex-direction: column; gap: 26px; }
+.audit > section { display: flex; flex-direction: column; gap: 12px; }
+.audit h2 { font-size: 34px; text-transform: uppercase; font-weight: 700; }
+.audit h3 { font-size: 24px; }
+.audit p { max-width: 72ch; }
+.flag { border: 1px solid var(--signal); background: var(--signal-bg); border-radius: 9px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; max-width: 900px; }
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
+th { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--sunk); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink2); white-space: nowrap; }
+td code, .audit code { font-family: var(--mono); font-size: 12px; background: var(--sunk); border-radius: 3px; padding: 0 4px; }
+.size { font-family: var(--mono); font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.two > div { display: flex; flex-direction: column; gap: 10px; }
+.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; max-width: 72ch; }
+@media (prefers-reduced-motion: no-preference) { .pal { animation: rise .14s ease-out; } @keyframes rise { from { transform: translateY(6px); opacity: .6; } } }
+</style>
+
+<div class="wrap">
+  <header class="pagehead">
+    <div>
+      <p class="eyebrow">Off-Grid Fieldbook · clickable mock-up · example data</p>
+      <h1>Fieldbook Redesign</h1>
+    </div>
+    <p>Click around the app below like it is real. Pick a screen from the row, or use the keys: <span class="kbd">⌘K</span> or <span class="kbd">/</span> for search, <span class="kbd">1</span> to <span class="kbd">5</span> for the tabs, <span class="kbd">E</span> for an emergency. The notes on the right explain each screen.</p>
+  </header>
+
+  <div class="strip" id="strip" role="toolbar" aria-label="Screens"></div>
+
+  <div class="stage">
+    <div class="window">
+      <div class="titlebar"><i></i><i></i><i></i><span>Off-Grid Fieldbook</span></div>
+      <div class="appwrap" id="appwrap">
+        <div class="app" id="app">
+          <div class="topbar" id="topbar"></div>
+          <nav class="side" id="side" aria-label="App"></nav>
+          <div class="main">
+            <div class="crumbs" id="crumbs"></div>
+            <div class="view" id="view"></div>
+          </div>
+          <div class="tabbar" id="tabbar"></div>
+          <div class="scrim" id="scrim" hidden>
+            <div class="pal" role="dialog" aria-label="Search">
+              <div class="palin"><span id="palicon"></span><input id="pq" type="text" autocomplete="off" spellcheck="false" placeholder="Search, or type where you want to go" aria-label="Search everything"><span class="kbd">esc</span></div>
+              <div class="filters" id="filters"></div>
+              <div class="palout" id="palout"></div>
+              <div class="palfoot"><span><span class="kbd">↑</span> <span class="kbd">↓</span> move</span><span><span class="kbd">↵</span> open</span><span><span class="kbd">tab</span> switch filter</span><span>Everything here is searched on this Mac. No internet.</span></div>
+            </div>
+          </div>
+          <div class="toast" id="toast" role="status" hidden></div>
+        </div>
+      </div>
+    </div>
+    <aside class="notes" id="notes" aria-live="polite"></aside>
+  </div>
+
+  <div class="audit">
+    <section>
+      <p class="eyebrow">The audit</p>
+      <h2>What is wrong today, ranked</h2>
+      <p>This comes from three places: reading the app's own code, Astro's 14-page review, and running real questions through today's search. Size is S for a small change, M for a screen plus its storage, L for a whole new part.</p>
+      <div class="flag">
+        <b>Check first: the screenshot with a pin called Home</b>
+        <p>The public screenshot <code>docs/screenshots/my-place-record.png</code> shows coordinates next to a record named Home. I opened it. The pin sits in rural Kansas, close to the geographic center of the lower 48, which is where test pins usually land. It is not in Texas. Swap it for a record with no pin anyway, because a stranger reading "Home" plus numbers will assume it is real.</p>
+      </div>
+      <div class="tablebox" id="auditTable"></div>
+    </section>
+
+    <section>
+      <h3>Search today, on the real manuals</h3>
+      <p>Today a result only counts if every word you typed appears letter for letter, anywhere inside any word. That one rule causes most of the misses below.</p>
+      <div class="tablebox" id="searchTable"></div>
+    </section>
+
+    <section class="two">
+      <div>
+        <h3>Where I went a different way from Astro</h3>
+        <ul class="plain">
+          <li>Astro's Home hides the situations behind "Choose a situation". I kept the six most likely ones on Home, so Power out is still one click.</li>
+          <li>Astro kept five menu rows that look alike. Here each tab has its own color, a number key, and a short list of what is inside when you open it.</li>
+          <li>Astro's search is a results page. Here it is a pop-up that fixes typos, knows nicknames like CO, and works with the arrow keys.</li>
+          <li>Astro's headings use a bookish serif. I used road-sign lettering and the plain typeface US agencies use. Both are free to ship inside the app, so nothing loads from the internet.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Build order</h3>
+        <ol class="plain" id="buildOrder"></ol>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+const PASS = __PASSAGES__;
+const SCEN = __SCEN__;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+/* ---------- icons ---------- */
+const IC = {
+  home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  map: '<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
+  box: '<path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9"/>',
+  book: '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 21V5M8 7h7"/>',
+  list: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
+  alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  down: '<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  pin: '<path d="M12 21s7-6.5 7-11.5a7 7 0 10-14 0C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  print: '<path d="M7 8V3h10v5M7 17H4v-7h16v7h-3"/><path d="M7 14h10v7H7z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  drop: '<path d="M12 3s6 7 6 11a6 6 0 01-12 0c0-4 6-11 6-11z"/>',
+  bolt: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',
+  can: '<path d="M6 5h12v14H6z"/><path d="M6 9h12M6 15h12"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
+  flag: '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
+  ruler: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  near: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+  drive: '<path d="M4 14h16v5H4zM6 14l2-9h8l2 9"/><path d="M8 17h.5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  leaf: '<path d="M5 19c0-9 5-14 15-14 0 10-5 15-14 15"/><path d="M5 19l8-8"/>'
+};
+const ic = (n, s = 18) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ""}</svg>`;
+
+/* ---------- example data (not anyone's real household) ---------- */
+const RECS = [
+  { id: "barrel", g: "Water", icon: "drop", name: "Blue barrel", st: ["ok", "Ready"], stat: "41 of 55 gal", kw: "water storage drum container drinking", level: [41, 55], lasts: "about 9 days",
+    facts: [["Capacity", "55 gal"], ["Level now", "41 gal"], ["Daily draw", "4.5 gal a day (measured)"], ["Lasts", "about 9 days"], ["Last cleaned", "2 Jun 2026"], ["Cap thread", "2 inch coarse"], ["Spare parts", "Cap wrench and 2 gaskets, garage shelf"]],
+    log: [["12 Nov", "Topped up from the tap, added bleach"], ["2 Jun", "Drained and cleaned"]] },
+  { id: "tote", g: "Water", icon: "drop", name: "Rain tote", st: ["due", "Clean due"], stat: "275 gal", kw: "rainwater catchment tank ibc",
+    facts: [["Capacity", "275 gal"], ["Use", "Garden and washing, not for drinking"], ["Last cleaned", "April 2026"], ["Clean every", "180 days"], ["Screen", "Leaf screen and first flush"]], log: [["April", "Cleaned the screen"]] },
+  { id: "station", g: "Power", icon: "bolt", name: "Power station", st: ["ok", "Ready"], stat: "1,024 Wh", kw: "battery ups inverter backup", lasts: "about 2.5 days",
+    facts: [["Battery", "1,024 Wh"], ["Daily use", "410 Wh a day (measured)"], ["Lasts", "about 2.5 days"], ["Last real test", "30 Oct 2026"], ["Runs", "Fridge, router, phone chargers"], ["Cables", "Solar input cable, top drawer"]],
+    log: [["30 Oct", "Ran the fridge 9 hours, used 61%"]] },
+  { id: "gen", g: "Power", icon: "bolt", name: "Generator", st: ["due", "Test due"], stat: "5,500 W", kw: "generator gas fuel engine carbon monoxide",
+    facts: [["Running watts", "5,500 W"], ["Fuel on hand", "6 gal"], ["Last real test", "May 2026"], ["Test every", "90 days"], ["Rule", "Outside only, 20 ft from doors and windows"], ["Parts", "10W-30 oil, spare spark plug in the case"]],
+    log: [["May", "Ran 20 minutes under load"]] },
+  { id: "aa", g: "Supplies", icon: "can", name: "AA batteries", st: ["low", "Low"], stat: "8 left", kw: "battery batteries flashlight radio",
+    facts: [["On hand", "8"], ["Want at least", "24"], ["Used by", "Flashlights, weather radio"], ["Where", "Hall closet, top shelf"]], log: [] },
+  { id: "food", g: "Supplies", icon: "can", name: "Canned food", st: ["ok", "Ready"], stat: "42 cans", kw: "food cans pantry meals", lasts: "about 14 days",
+    facts: [["On hand", "42 cans"], ["Used per day", "3 cans (estimated)"], ["Lasts", "about 14 days"], ["Oldest date", "March 2028"], ["Where", "Pantry floor bins"]], log: [] },
+  { id: "contact", g: "People and places", icon: "user", name: "Out-of-area contact", st: ["ok", "Checked"], stat: "Family check-in", kw: "phone call family relative check in",
+    facts: [["Name", "[name]"], ["Phone", "[phone]"], ["Check-in time", "8 pm, then every 12 hours"], ["If no answer", "Text, then try the neighbor"]], log: [] },
+  { id: "meet", g: "People and places", icon: "flag", name: "Meeting point", st: ["ok", "Checked"], stat: "On the map", kw: "meet rally point location coordinates", pin: true, ll: [30.2672, -97.7431],
+    facts: [["Where", "Library parking lot, north entrance"], ["Fallback", "School front gate"], ["Walk time", "About 12 minutes"]], log: [] },
+  { id: "shutoff", g: "People and places", icon: "flag", name: "Water shutoff", st: ["ok", "Checked"], stat: "On the map", kw: "valve main shut off curb leak pipe", pin: true, ll: [30.2747, -97.7404],
+    facts: [["Where", "Front yard curb box, left of the driveway"], ["Tool", "Meter key, hangs in the garage"], ["Turn", "Quarter turn clockwise"]], log: [] }
+];
+const PLANS = [
+  { id: "p-power", name: "Power out: first 2 hours", done: ["s1", "s2", "s3"], steps: [["s1", "Check the breaker box, then look outside for other dark houses"], ["s2", "Report the outage to the utility"], ["s3", "Put the fridge thermometer where you can see it, then keep the doors shut"], ["s4", "Plug the fridge and router into the power station"], ["s5", "Unplug the TV and computers"], ["s6", "Fill the bathtub if a freeze is coming"], ["s7", "Text the out-of-area contact"], ["s8", "Write down the time the power went out"]] },
+  { id: "p-shut", name: "Shutoffs", done: [], steps: [["t1", "Water: curb box, quarter turn with the meter key"], ["t2", "Gas: only if you smell gas. Quarter turn so the lever crosses the pipe"], ["t3", "Power: main breaker at the top of the panel"]] },
+  { id: "p-family", name: "Family check-in card", form: ["Out-of-area contact", "Check-in time", "Meeting point", "Fallback meeting point"] }
+];
+const TOPICS = [
+  ["water", "Water", "drop", ["Texas Manual on Rainwater Harvesting", "Water and Sanitation: Keys to Staying Healthy", "Health Problems from Unsafe Water", "Protecting Community Water"], 163],
+  ["food", "Food", "can", ["USDA Complete Guide to Home Canning", "Dehydrating Foods", "Planting Dates for North Texas"], 392],
+  ["health", "Health", "plus", ["Where There Is No Doctor", "Where Women Have No Doctor", "Where There Is No Dentist"], 1342],
+  ["hazards", "Hazards", "alert", ["All Hazard Sheets (full set)", "Power Outage Information Sheet", "Shelter in Place", "Extreme Heat", "Winter Storm"], 63],
+  ["tools", "Tools and repair", "gear", ["Farm Machinery and Farm Motors", "Farm Blacksmithing", "Handbook of Soap Manufacture"], 766],
+  ["plants", "Plants", "leaf", ["Edible and useful plants, with photos", "Collin County Vegetable Planting Calendar"], 0]
+];
+const SECTIONS = { "Texas Manual on Rainwater Harvesting": 80, "Water and Sanitation: Keys to Staying Healthy": 25, "Health Problems from Unsafe Water": 20, "Protecting Community Water": 38, "USDA Complete Guide to Home Canning": 176, "Dehydrating Foods": 214, "Planting Dates for North Texas": 2, "Where There Is No Doctor": 498, "Where Women Have No Doctor": 601, "Where There Is No Dentist": 243, "All Hazard Sheets (full set)": 35, "Power Outage Information Sheet": 11, "Shelter in Place": 13, "Extreme Heat": 2, "Winter Storm": 2, "Farm Machinery and Farm Motors": 516, "Farm Blacksmithing": 87, "Handbook of Soap Manufacture": 163 };
+const TABS = [
+  { id: "home", label: "Home", icon: "home", key: "1", sub: [["Needs attention", "home"], ["Sun and time", "sun"], ["Readiness check", "check"], ["Something happening", "emergency:power"]] },
+  { id: "map", label: "Map", icon: "map", key: "2", sub: [["Layers", "map:layers"], ["Near me", "map:near"], ["Get maps", "setup"]] },
+  { id: "place", label: "My Place", icon: "box", key: "3", sub: [["Water", "place:barrel"], ["Power", "place:station"], ["Supplies sheet", "supplies"], ["People and places", "place:contact"]] },
+  { id: "learn", label: "Learn", icon: "book", key: "4", sub: TOPICS.map(t => [t[1], "learn:" + t[0]]).concat([["Living with the land", "earth"]]) },
+  { id: "plan", label: "Plan", icon: "list", key: "5", sub: PLANS.map(p => [p.name, "plan:" + p.id]) }
+];
+const TABOF = { home: "home", emergency: "home", check: "home", sun: "home", earth: "learn", map: "map", setup: "map", place: "place", supplies: "place", learn: "learn", plan: "plan" };
+const NAMES = { home: "Home", emergency: "Something happening", check: "Readiness check", sun: "Sun and time", earth: "Living with the land", map: "Map", setup: "Get maps", place: "My Place", supplies: "Supplies on hand", learn: "Learn", plan: "Plan" };
+const STATES = "Alabama,Alaska,Arizona,Arkansas,California,Colorado,Connecticut,Delaware,Florida,Georgia,Hawaii,Idaho,Illinois,Indiana,Iowa,Kansas,Kentucky,Louisiana,Maine,Maryland,Massachusetts,Michigan,Minnesota,Mississippi,Missouri,Montana,Nebraska,Nevada,New Hampshire,New Jersey,New Mexico,New York,North Carolina,North Dakota,Ohio,Oklahoma,Oregon,Pennsylvania,Rhode Island,South Carolina,South Dakota,Tennessee,Texas,Utah,Vermont,Virginia,Washington,West Virginia,Wisconsin,Wyoming".split(",");
+
+/* ---------- state ---------- */
+const S = { screen: "home", arg: "", arg2: "", hist: [], menu: false, mapEmpty: false, mapq: "", wikiq: "", backed: false, drawer: "layers", listOpen: false, device: "mac",
+  loc: 0, cal: { y: new Date().getFullYear(), m: new Date().getMonth() }, showll: false, setup: { state: "", level: "standard", layers: true, dest: "mac", checked: false, q: "" }, filter: "all", sel: 0, checking: -1 };
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+let ticks = store.get("fb-ticks", null);
+if (!ticks) { ticks = {}; PLANS.forEach(p => (p.done || []).forEach(id => ticks[id] = true)); }
+let extra = store.get("fb-steps", {});
+const stepsOf = p => (p.steps || []).concat(extra[p.id] || []);
+const PLACES = [["Austin, Texas (example)", 30.2747, -97.7404, "America/Chicago"], ["Denver, Colorado", 39.7392, -104.9903, "America/Denver"], ["Seattle, Washington", 47.6062, -122.3321, "America/Los_Angeles"], ["Miami, Florida", 25.7617, -80.1918, "America/New_York"], ["Anchorage, Alaska", 61.2181, -149.9003, "America/Anchorage"]];
+const D2R = Math.PI / 180;
+function sunAt(y, m, d, lat, lon) {
+  const t0 = Date.UTC(y, m, d), n = Math.round((t0 - Date.UTC(y, 0, 1)) / 864e5) + 1, g = 2 * Math.PI / 365 * (n - 1);
+  const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const c = Math.cos(90.833 * D2R) / (Math.cos(lat * D2R) * Math.cos(dec)) - Math.tan(lat * D2R) * Math.tan(dec);
+  const noon = 720 - 4 * lon - eq, ok = c <= 1 && c >= -1, ha = ok ? Math.acos(c) / D2R : c > 1 ? 0 : 180, at = min => new Date(t0 + min * 6e4);
+  return { noon: at(noon), rise: ok ? at(noon - 4 * ha) : null, set: ok ? at(noon + 4 * ha) : null, len: ha * 8 / 60, alt: 90 - Math.abs(lat - dec / D2R) };
+}
+const fmtT = (d, tz, sec) => d ? new Intl.DateTimeFormat("en-US", Object.assign({ hour: "numeric", minute: "2-digit", timeZone: tz }, sec ? { second: "2-digit" } : {})).format(d) : "none";
+const locMin = (d, tz) => { const p = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: tz }).formatToParts(d); return +p.find(x => x.type === "hour").value * 60 + +p.find(x => x.type === "minute").value; };
+const hm = h => Math.floor(h) + " h " + String(Math.floor((h % 1) * 60)).padStart(2, "0") + " min";
+const SYNODIC = 29.530588861 * 864e5;
+function moonAt(k) {
+  const T = k / 1236.85, E = 1 - 0.002516 * T, M = (2.5534 + 29.1053567 * k) * D2R, Mp = (201.5643 + 385.81693528 * k) * D2R, F = (160.7108 + 390.67050284 * k) * D2R, full = k % 1 !== 0;
+  const c = full ? -0.40614 * Math.sin(Mp) + 0.17302 * E * Math.sin(M) + 0.01614 * Math.sin(2 * Mp) + 0.01043 * Math.sin(2 * F) + 0.00734 * E * Math.sin(Mp - M) - 0.00515 * E * Math.sin(Mp + M)
+    : -0.4072 * Math.sin(Mp) + 0.17241 * E * Math.sin(M) + 0.01608 * Math.sin(2 * Mp) + 0.01039 * Math.sin(2 * F) + 0.00739 * E * Math.sin(Mp - M) - 0.00514 * E * Math.sin(Mp + M);
+  return (2451550.09766 + 29.530588861 * k + 0.00015437 * T * T + c - 2440587.5) * 864e5 - 7e4;
+}
+function lastNew(ms) { let k = Math.floor((ms - Date.UTC(2000, 0, 6, 18, 14)) / SYNODIC) + 1; while (moonAt(k) > ms) k--; return k; }
+function utm(lat, lon) {
+  const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2);
+  const zone = Math.floor((lon + 180) / 6) + 1, lon0 = ((zone - 1) * 6 - 180 + 3) * D2R, ph = lat * D2R, la = lon * D2R;
+  const N = a / Math.sqrt(1 - e2 * Math.sin(ph) ** 2), T = Math.tan(ph) ** 2, C = ep2 * Math.cos(ph) ** 2, A = Math.cos(ph) * (la - lon0);
+  const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * ph - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * ph) + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * ph) - (35 * e2 ** 3 / 3072) * Math.sin(6 * ph));
+  const E = k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T ** 2 + 72 * C - 58 * ep2) * A ** 5 / 120) + 500000;
+  let Nn = k0 * (M + N * Math.tan(ph) * (A ** 2 / 2 + (5 - T + 9 * C + 4 * C ** 2) * A ** 4 / 24 + (61 - 58 * T + T ** 2 + 600 * C - 330 * ep2) * A ** 6 / 720)); if (lat < 0) Nn += 1e7;
+  return { zone, band: "CDEFGHJKLMNPQRSTUVWXX"[Math.floor((lat + 80) / 8)], E, N: Nn };
+}
+function coordLines(lat, lon) {
+  const u = utm(lat, lon), set = (u.zone - 1) % 6 + 1, col = ["ABCDEFGH", "JKLMNPQR", "STUVWXYZ"][(set - 1) % 3][Math.floor(u.E / 1e5) - 1], row = "ABCDEFGHJKLMNPQRSTUV"[(Math.floor(u.N / 1e5) + (set % 2 === 0 ? 5 : 0)) % 20];
+  const pad = v => String(Math.floor(v % 1e5)).padStart(5, "0"), dms = (v, p, n) => { const a = Math.abs(v), d = Math.floor(a), m = Math.floor((a - d) * 60), sec = ((a - d) * 60 - m) * 60; return `${d}° ${m}' ${sec.toFixed(1)}" ${v >= 0 ? p : n}`; };
+  return [["Latitude, longitude", lat.toFixed(5) + ", " + lon.toFixed(5)], ["Degrees, minutes, seconds", dms(lat, "N", "S") + "  " + dms(lon, "E", "W")], ["UTM", `${u.zone}${u.band} ${Math.floor(u.E)}E ${Math.floor(u.N)}N`], ["USNG (US National Grid), for rescue and radio", `${u.zone}${u.band} ${col}${row} ${pad(u.E)} ${pad(u.N)}`]];
+}
+const coordHTML = ll => `<dl class="facts coords">${coordLines(ll[0], ll[1]).map(c => `<dt>${c[0]}</dt><dd>${c[1]}</dd>`).join("")}</dl>`;
+const locSel = () => `<select class="field" id="locsel" aria-label="Place" style="max-width:240px">${PLACES.map((p, i) => `<option value="${i}"${i === S.loc ? " selected" : ""}>${p[0]}</option>`).join("")}</select>`;
+const META = { s1: { when: "First 15 min", need: "Flashlight" }, s2: { when: "First 15 min", need: "Utility number, on the fridge" }, s3: { when: "First 15 min", need: "Fridge thermometer" }, s4: { when: "First hour", need: "Power station, extension cord" }, s5: { when: "First hour" }, s6: { when: "First hour" }, s7: { when: "By 2 hours", need: "Phone" }, s8: { when: "By 2 hours", need: "Pen" }, t1: { need: "Meter key" }, t2: { need: "Wrench" }, t3: { need: "Flashlight" } };
+let cells = store.get("fb-cells", {}), famN = store.get("fb-famn", 4);
+const cell = (id, f, def) => { const k = id + ":" + f; return k in cells ? cells[k] : (META[id] && META[id][f]) || def || ""; };
+const CATS = ["Water", "Food", "Power", "Medical", "Gear"], CATC = { Water: "var(--b-map)", Food: "var(--b-learn)", Power: "var(--b-place)", Medical: "var(--low)", Gear: "var(--b-plan)" };
+const COMMON = [["Bottled water", "Water", "case"], ["Water filter", "Water", "each"], ["Rice", "Food", "lb"], ["Dry beans", "Food", "lb"], ["Peanut butter", "Food", "jar"], ["Pet food", "Food", "lb"], ["Propane", "Power", "lb"], ["Gasoline", "Power", "gal"], ["D batteries", "Gear", "each"], ["Flashlight", "Gear", "each"], ["Weather radio", "Gear", "each"], ["Candles", "Gear", "each"], ["Toilet paper", "Gear", "roll"], ["Bandages", "Medical", "box"], ["Pain reliever", "Medical", "bottle"]];
+let SUP = store.get("fb-sup", null) || [
+  { id: "u1", item: "Drinking water, blue barrel", cat: "Water", qty: "41", unit: "gal", use: "4.5" },
+  { id: "u2", item: "Bleach, plain 6%", cat: "Water", qty: "1", unit: "qt", use: "" },
+  { id: "u3", item: "Canned food", cat: "Food", qty: "42", unit: "cans", use: "3" },
+  { id: "u4", item: "Power station", cat: "Power", qty: "1024", unit: "Wh", use: "410" },
+  { id: "u5", item: "Generator fuel", cat: "Power", qty: "6", unit: "gal", use: "" },
+  { id: "u6", item: "AA batteries", cat: "Gear", qty: "8", unit: "each", use: "" },
+  { id: "u7", item: "First aid kit", cat: "Medical", qty: "1", unit: "kit", use: "" }
+];
+const daysOf = r => { const q = parseFloat(r.qty), u = parseFloat(r.use); return q >= 0 && u > 0 ? q / u : null; };
+const catDays = c => SUP.filter(r => r.cat === c).reduce((sum, r) => sum + (daysOf(r) || 0), 0);
+const fmtD = d => { const v = d >= 10 ? Math.round(d) : Math.round(d * 10) / 10; return v + (v === 1 ? " day" : " days"); };
+const badNum = r => ["qty", "use"].some(f => { const s = String(r[f] || "").trim(); return s && !(parseFloat(s) >= 0); });
+const ring = (label, frac, color, text) => `<div class="ring"><svg width="88" height="88" viewBox="0 0 72 72" role="img" aria-label="${esc(label)}: ${esc(text)}"><circle cx="36" cy="36" r="28" fill="none" stroke="var(--sunk)" stroke-width="8"/><circle cx="36" cy="36" r="28" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${Math.max(0, Math.min(1, frac)) * 176} 176" transform="rotate(-90 36 36)"/><text x="36" y="41" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">${esc(text)}</text></svg><span>${esc(label)}</span></div>`;
+const stack = parts => `<div class="stack">${parts.filter(x => x[0]).map(x => `<span class="${x[2]}" style="flex:${x[0]}">${x[0]} ${x[1]}</span>`).join("")}</div>`;
+function supCharts() {
+  return `<section class="panel"><p class="eyebrow">Against the 2-week goal</p><h2>Days by kind</h2><div class="row" style="gap:20px">${["Water", "Food", "Power"].map(c => { const d = catDays(c); return ring(c, d / 14, CATC[c], d ? fmtD(d).replace(/ days?/, " d") : "?"); }).join("")}</div><p class="fine">A full ring is 14 days or more.</p></section>
+  <section class="panel"><p class="eyebrow">Each item</p><h2>Days left</h2><div class="bars">${SUP.filter(r => r.item).map(r => { const d = daysOf(r); return `<div class="bar wide" style="--c:${CATC[r.cat] || "var(--ink2)"}"><span>${esc(r.item)}</span><div class="track">${d != null ? `<div class="fill" style="width:${Math.min(d, 21) / 21 * 100}%"></div>` : ""}<div class="goal" style="left:${14 / 21 * 100}%"></div></div><span class="days">${d != null ? fmtD(d) : badNum(r) ? "check" : "no rate"}</span></div>`; }).join("")}</div><p class="fine">The line across each bar is 14 days. Scale runs 0 to 21.</p></section>`;
+}
+const daysCell = r => { const d = daysOf(r); return badNum(r) ? `<span style="color:var(--low)">check the number</span>` : d != null ? fmtD(d) : `<span class="hint">add use per day</span>`; };
+function supRows() {
+  const q = (S.supq || "").trim().toLowerCase(), rows = SUP.filter(r => !q || r.item.toLowerCase().includes(q));
+  const si = (r, f, ph) => `<input type="text" id="c-${r.id}-${f}" data-sup="${r.id}:${f}" value="${esc(r[f])}" placeholder="${ph}" aria-label="${f}"${f === "qty" || f === "use" ? ' inputmode="decimal"' : ""}>`;
+  if (!rows.length) return `<tr><td class="calc" colspan="8">Nothing in your sheet matches. Press enter to add it.</td></tr>`;
+  return rows.map(r => `<tr><td class="rn">${SUP.indexOf(r) + 1}</td><td>${si(r, "item", "Item")}</td><td><select id="c-${r.id}-cat" data-sup="${r.id}:cat" aria-label="Kind">${CATS.map(c => `<option${r.cat === c ? " selected" : ""}>${c}</option>`).join("")}</select></td><td class="num">${si(r, "qty", "0")}</td><td>${si(r, "unit", "unit")}</td><td class="num">${si(r, "use", "")}</td><td class="calc" id="d-${r.id}">${daysCell(r)}</td><td class="ck"><button class="xbtn" data-delsup="${r.id}" aria-label="Remove row">${ic("x", 14)}</button></td></tr>`).join("");
+}
+function supSugg() {
+  const raw = (S.supq || "").trim(), q = raw.toLowerCase(); if (!q) return `<span class="fine">Try typing rice, propane or batteries.</span>`;
+  const have = n => SUP.some(r => r.item.toLowerCase() === n.toLowerCase());
+  const c = COMMON.filter(x => x[0].toLowerCase().includes(q) && !have(x[0])).slice(0, 4);
+  return c.map(x => `<button class="chipbtn" data-addsup="${esc(x[0])}">${ic("plus", 14)}Add ${esc(x[0])}</button>`).join("") + (have(raw) || c.some(x => x[0].toLowerCase() === q) ? "" : `<button class="chipbtn" data-addsup="${esc(raw)}">${ic("plus", 14)}Add “${esc(raw)}” as new</button>`);
+}
+const KIND = [[/water|bleach|filter|purif/, "Water"], [/rice|bean|food|\bcans?\b|canned|flour|oat|pasta|meal|sugar|salt|milk|honey|soup|tuna|cereal/, "Food"], [/propane|gasoline|\bgas\b|fuel|kerosene|diesel|solar|charger|generator/, "Power"], [/bandage|medic|first aid|gauze|aspirin|ibuprofen|pain|antibiotic|insulin|inhaler|ointment|thermometer/, "Medical"]];
+function addSup(name, guess) {
+  name = (name || "").trim(); if (!name) return;
+  const low = name.toLowerCase(), free = x => !SUP.some(r => r.item.toLowerCase() === x[0].toLowerCase());
+  const focus = id => { const e = document.getElementById("c-" + id + "-qty"); if (e) e.focus(); };
+  const same = SUP.find(r => r.item.trim().toLowerCase() === low);
+  if (same) { S.supq = ""; render(true); return focus(same.id); }
+  const c = COMMON.find(x => x[0].toLowerCase() === low) || (guess ? COMMON.find(x => x[0].toLowerCase().includes(low) && free(x)) : null);
+  const row = { id: "u" + Date.now().toString(36), item: c ? c[0] : name[0].toUpperCase() + name.slice(1), cat: c ? c[1] : (KIND.find(k => k[0].test(low)) || [0, "Gear"])[1], qty: "", unit: c ? c[2] : "", use: "" };
+  SUP.push(row); store.set("fb-sup", SUP); S.supq = ""; render(true); focus(row.id);
+}
+
+/* ---------- smart search ---------- */
+const STOP = new Set("a an the to of how do i my what is for in on and with when it if can we you me no not much many per does long will should there where has have wont cant dont are am was too very really so".split(" "));
+const norm = w => {
+  w = w.toLowerCase();
+  if (w.length > 4) {
+    if (w.endsWith("ies")) return w.slice(0, -3) + "y";
+    if (w.endsWith("ing")) return w.slice(0, -3);
+    if (w.endsWith("ed")) return w.slice(0, -2);
+    if (/(sses|xes|zes|ches|shes)$/.test(w)) return w.slice(0, -2);
+    if (w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  }
+  return w;
+};
+const toks = s => (String(s).toLowerCase().match(/[a-z0-9]+/g) || []).map(norm);
+const SYN = { co: ["carbon", "monoxide"], gen: ["generator"], genny: ["generator"], blackout: ["power", "outage"], outage: ["power"], electricity: ["power"], electric: ["power"], light: ["power"],
+  cold: ["freeze", "freez", "winter"], snow: ["winter", "freeze"], ice: ["freeze", "winter"], frozen: ["freeze", "freez"], storage: ["stor", "store"], scald: ["burn"], heatstroke: ["heat", "stroke"], torch: ["flashlight"], toddler: ["children", "child"],
+  chok: ["throat"], choke: ["throat"], heimlich: ["throat"], temperature: ["fever"], dehydration: ["rehydration"], er: ["hospital"], clinic: ["hospital"], doctor: ["hospital"], hurt: ["bleed", "wound", "injury"], bleed: ["tourniquet", "hurt", "wound"], blood: ["bleed", "tourniquet"],
+  cut: ["bleed", "wound"], injury: ["hurt", "bleed"], evacuate: ["leave"], h2o: ["water"], drink: ["water"], purify: ["bleach", "boil", "disinfect"], disinfect: ["bleach", "chlorine"],
+  chlorine: ["bleach"], med: ["medication", "doctor"], ups: ["power", "station"], battery: ["station"], twister: ["tornado"], fire: ["smoke"], quake: ["earthquake"], hot: ["heat"],
+  fridge: ["refrigerator", "freezer"], refrigerator: ["fridge"], gasoline: ["fuel"], fuel: ["gasoline"], shutoff: ["valve"], valve: ["shutoff"], pipe: ["freeze", "shutoff"],
+  sick: ["diarrhea", "fever"], dehydrat: ["rehydration"], kid: ["children", "child"], call: ["contact", "phone"], meet: ["meeting"] };
+function lev(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return 9;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let low = i;
+    for (let j = 1; j <= b.length; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); if (cur[j] < low) low = cur[j]; }
+    if (low > max) return 9; prev = cur;
+  }
+  return prev[b.length];
+}
+function matchTok(q, set) {
+  if (set.has(q)) return { s: 1, tok: q };
+  for (const alt of SYN[q] || []) if (set.has(alt)) return { s: .8, tok: alt };
+  if (q.length >= 3) for (const t of set) if (t.length > q.length && t.startsWith(q)) return { s: .75, tok: t };
+  /* typo fixing: only for a word that is in no document, and only close misses that keep the first letter */
+  if (q.length >= 4 && !VOCAB.has(q)) { const max = q.length >= 8 ? 2 : 1; for (const t of set) {
+    if (t[0] !== q[0] || t.length < 4) continue;
+    const swap = t.length === q.length && [...q].some((c, i) => i < q.length - 1 && q.slice(0, i) + q[i + 1] + c + q.slice(i + 2) === t);
+    const near = q.length >= 5 && t.length >= 5 && !(t.length === q.length && q.length < 6) && lev(q, t, max) <= max;
+    if (swap || near) return { s: .6, tok: t, fix: q.startsWith(t) ? null : t };
+  } }
+  return null;
+}
+const DOCS = [], VOCAB = new Set();
+const addDoc = (type, title, body, o) => { const d = Object.assign({ type, title, body, T: new Set(toks(title)), B: new Set(toks(body)), K: new Set(toks(o.kw || "")), w: 1 }, o); [d.T, d.B, d.K].forEach(s => s.forEach(t => VOCAB.add(t))); DOCS.push(d); };
+TABS.forEach(t => addDoc("go", "Go to " + t.label, "", { kw: t.label + " " + t.sub.map(s => s[0]).join(" "), route: t.id, icon: t.icon, sub: "Press " + t.key }));
+[["Add a record", "new add water gear supply person place", "place", "plus"], ["Run the readiness check", "offline test ready works backup back up", "check", "shield"], ["Get a state map", "download maps setup install state pack", "setup", "down"],
+ ["Sun and time", "sunrise sunset calendar clock time zone timezone utc moon daylight date month", "sun", "clock"], ["Living with the land", "earthship passive solar earth home building rainwater greywater greenhouse harmony nature thermal", "earth", "leaf"], ["Show coordinates", "coordinates gps utm usng latitude longitude location grid", "place:meet", "pin"], ["Open the supplies sheet", "supplies stock inventory spreadsheet table on hand list", "supplies", "can"], ["Start a new checklist", "new plan create list template", "plan", "plus"], ["Something happening", "help emergency 911 sos urgent danger mayday", "emergency:power:menu", "alert"], ["Nearest shelter or hospital", "hospital shelter nearest near me closest clinic", "map:near", "near"]].forEach(a => addDoc("go", a[0], "", { kw: a[1], route: a[2], icon: a[3], sub: "Action" }));
+SCEN.forEach(s => addDoc("step", s.title, s.steps.join(" "), { kw: s.kw, route: "emergency:" + s.id, icon: "alert", scen: s }));
+RECS.forEach(r => addDoc("stuff", r.name, r.facts.map(f => f.join(" ")).join(" ") + " " + r.g, { kw: r.kw, route: "place:" + r.id, icon: r.icon, rec: r, sub: r.g + " · " + r.stat }));
+PASS.forEach(p => addDoc("manual", p.h || p.doc, p.x, { kw: p.kw || "", route: "learn:read:" + p.id, icon: "book", pass: p, w: p.w, sub: p.doc + " · page " + p.p }));
+PLANS.forEach(p => stepsOf(p).forEach(st => addDoc("plan", st[1], p.name, { route: "plan:" + p.id + ":" + st[0], icon: "list", sub: p.name })));
+const TYPEW = { step: 1.35, stuff: 1.2, plan: 1.05, manual: 1, go: 1.1 };
+const GROUPS = [["step", "What to do now"], ["stuff", "Your stuff"], ["manual", "From the manuals"], ["plan", "Your plan"], ["go", "Go to"]];
+function search(q, filter) {
+  q = String(q).toLowerCase().replace(/\b(no|without|lost) (the )?heat(ing|er)?\b|\bheat(ing|er)? (is |went )?(out|off|broke|broken|down)\b/g, "freeze");
+  const qt = [...new Set(toks(q).filter(t => !STOP.has(t)))];
+  if (!qt.length) return { hits: [], fixes: [] };
+  const hits = [];
+  for (const d of DOCS) {
+    if (filter !== "all" && d.type !== filter) continue;
+    let sum = 0, miss = 0; const used = new Set(), fixes = [];
+    for (const t of qt) {
+      let best = 0, tok = null, fix = null;
+      for (const [set, w] of [[d.T, 3], [d.K, 2], [d.B, 1]]) { const m = matchTok(t, set); if (m && m.s * w > best) { best = m.s * w; tok = m.tok; fix = m.fix || null; } }
+      if (!best) miss++; else { sum += best; used.add(tok); if (fix) fixes.push([t, fix]); }
+    }
+    if (miss && !(qt.length >= 2 && miss === 1)) continue;
+    let score = sum / (qt.length * 3) * TYPEW[d.type] * d.w * (miss ? (qt.length >= 3 ? .55 : .35) : 1);
+    if (qt.every(t => d.T.has(t))) score *= 1.25;
+    hits.push({ d, score, used, fixes });
+  }
+  hits.sort((a, b) => b.score - a.score);
+  const fixes = []; hits.slice(0, 3).forEach(h => h.fixes.forEach(f => { if (!fixes.some(x => x[0] === f[0])) fixes.push(f); }));
+  return { hits, fixes };
+}
+const hi = (text, used) => esc(text).replace(/[A-Za-z0-9]+/g, w => used && used.has(norm(w)) ? "<mark>" + w + "</mark>" : w);
+function snip(text, used) {
+  const words = text.split(" "); let at = words.findIndex(w => used.has(norm(w.replace(/[^A-Za-z0-9]/g, ""))));
+  const from = Math.max(0, at - 9), part = words.slice(from, from + 30).join(" ");
+  return (from ? "…" : "") + part + (from + 30 < words.length ? "…" : "");
+}
+
+/* ---------- palette ---------- */
+const FILTERS = [["all", "Everything"], ["step", "Steps"], ["stuff", "My stuff"], ["manual", "Manuals"], ["plan", "Plan"]];
+let recent = ["barrel cap thread", "boil water"];
+function openPal(q) { $("#scrim").hidden = false; const i = $("#pq"); i.value = q || ""; S.sel = 0; S.filter = "all"; drawPal(); i.focus(); if (q) i.setSelectionRange(q.length, q.length); }
+function closePal() { $("#scrim").hidden = true; }
+function resHTML(h, n, best) {
+  const d = h.d, c = d.type === "step" ? "var(--signal)" : d.type === "stuff" ? "var(--b-place)" : d.type === "manual" ? "var(--b-learn)" : d.type === "plan" ? "var(--b-plan)" : "var(--ink2)";
+  let body = `<b>${hi(d.title, h.used)}</b><span class="where">${d.type === "manual" ? "page " + d.pass.p : d.type === "stuff" ? esc(d.rec.st[1]) : ""}</span>`;
+  if (best && d.type === "step") body += `<ol>${d.scen.steps.slice(0, 2).map(s => "<li>" + hi(s, h.used) + "</li>").join("")}</ol><small>Press enter for all the steps</small>`;
+  else if (best && d.type === "stuff") body += `<small>${esc(d.sub)}${d.rec.lasts ? ". Lasts " + esc(d.rec.lasts) + "." : ""}</small><small>${hi(d.rec.facts.slice(-2).map(f => f[0] + ": " + f[1]).join(". "), h.used)}</small>`;
+  else if (d.type === "manual") body += `<small>${hi(snip(d.body, h.used), h.used)}</small><small>${esc(d.pass.doc)}</small>`;
+  else body += `<small>${esc(d.sub || "")}</small>`;
+  return `<button class="res${best ? " best" : ""}" data-n="${n}" data-route="${esc(d.route)}" style="--c:${c}">${ic(d.icon)}${body}</button>`;
+}
+function drawPal() {
+  $("#palicon").innerHTML = ic("search", 20);
+  $("#filters").innerHTML = FILTERS.map(f => `<button data-filter="${f[0]}" aria-pressed="${S.filter === f[0]}">${f[1]}</button>`).join("");
+  const q = $("#pq").value.trim(), out = $("#palout");
+  if (!q) {
+    out.innerHTML = `<h4>Jump to</h4>` + TABS.map((t, i) => `<button class="res" data-n="${i}" data-route="${t.id}" style="--c:var(--b-${t.id})">${ic(t.icon)}<b>${t.label}</b><span class="kbd">${t.key}</span><small>${t.sub.map(s => s[0]).join(", ")}</small></button>`).join("")
+      + `<h4>Something happening</h4>` + SCEN.slice(0, 4).map((s, i) => `<button class="res" data-n="${5 + i}" data-route="emergency:${s.id}" style="--c:var(--signal)">${ic("alert")}<b>${esc(s.title)}</b><span></span><small>${esc(s.steps[0])}</small></button>`).join("")
+      + `<h4>You searched before</h4>` + recent.map((r, i) => `<button class="res" data-n="${9 + i}" data-q="${esc(r)}">${ic("clock")}<b>${esc(r)}</b><span></span></button>`).join("");
+    return markSel();
+  }
+  const { hits, fixes } = search(q, S.filter);
+  let html = "", n = 0;
+  if (fixes.length) html += `<div class="fix">Fixed a typo: ${fixes.map(f => esc(f[0]) + " → <b>" + esc(f[1]) + "</b>").join(", ")}</div>`;
+  if (!hits.length) html += `<div class="fix">Nothing in your records, steps, manuals or plan matches that. Try fewer words, or search the map or the wiki library below.</div>`;
+  else {
+    html += `<h4>Best match</h4>` + resHTML(hits[0], n++, true);
+    for (const [type, label] of GROUPS) {
+      const rows = hits.slice(1).filter(h => h.d.type === type).slice(0, 5);
+      if (rows.length) html += `<h4>${label}</h4>` + rows.map(h => resHTML(h, n++, false)).join("");
+    }
+  }
+  html += `<h4>Look further</h4><button class="res" data-n="${n++}" data-route="map" data-hand="map" style="--c:var(--b-map)">${ic("map")}<b>Search the map for “${esc(q)}”</b><span></span><small>Towns, your pins, water, shelters, hospitals</small></button>`
+    + `<button class="res" data-n="${n++}" data-route="learn" data-hand="wiki" style="--c:var(--b-learn)">${ic("book")}<b>Search the wiki library for “${esc(q)}”</b><span></span><small>Medical, repair and survival collections</small></button>`;
+  out.innerHTML = html; markSel();
+}
+function markSel() {
+  const all = [...document.querySelectorAll("#palout .res")]; if (!all.length) return;
+  S.sel = Math.max(0, Math.min(S.sel, all.length - 1));
+  all.forEach((b, i) => b.classList.toggle("sel", i === S.sel));
+  all[S.sel].scrollIntoView({ block: "nearest" });
+}
+function pickRes(b) {
+  if (!b) return;
+  if (b.dataset.q) { $("#pq").value = b.dataset.q; S.sel = 0; return drawPal(); }
+  const q = $("#pq").value.trim(); if (q && !recent.includes(q)) recent = [q, ...recent].slice(0, 3);
+  closePal(); go(b.dataset.route);
+  if (b.dataset.hand === "map") { S.mapq = q; S.drawer = "search"; render(); }
+  if (b.dataset.hand === "wiki") { S.wikiq = q; render(); }
+}
+
+/* ---------- routing ---------- */
+function go(route, keep) {
+  const [screen, arg = "", arg2 = ""] = String(route).split(":");
+  if (!keep) S.hist.push([S.screen, S.arg, S.arg2].join(":"));
+  if (S.hist.length > 30) S.hist.shift();
+  Object.assign(S, { screen, arg, arg2, menu: screen === "emergency" && arg2 === "menu", listOpen: false, mapq: "", wikiq: "" });
+  if (screen === "map" && arg) S.drawer = arg; else if (S.drawer === "search") S.drawer = "";
+  render();
+}
+function back() { const r = S.hist.pop(); if (r) go(r, true); }
+
+/* ---------- screens ---------- */
+const pill = st => `<span class="pill ${st[0]}">${esc(st[1])}</span>`;
+const V = {
+  home() {
+    const due = RECS.filter(r => r.st[0] !== "ok");
+    return `<div class="head"><div><h1>Home</h1><p class="sub">Example household. Nothing here is real data.</p></div></div>
+    <div class="cols2">
+      <section class="panel sos"><p class="eyebrow">Something happening?</p><h2>Pick what is going on</h2>
+        <div class="chips">${["power", "tornado", "flood", "freeze", "hurt", "evac"].map(id => { const s = SCEN.find(x => x.id === id); return `<button class="chip" data-route="emergency:${id}">${esc(s.title)}</button>`; }).join("")}</div>
+        <button class="linkbtn" data-route="emergency:power" data-menu="1">All ${SCEN.length} situations ${ic("arrow", 15)}</button>
+      </section>
+      <section class="panel"><p class="eyebrow">How long will it last</p><h2>Supplies on hand</h2>
+        <div class="bars">
+          ${["Water", "Power", "Food"].map(c => { const d = catDays(c), rs = SUP.filter(r => r.cat === c && daysOf(r) != null);
+            return `<div class="bar" style="--c:${CATC[c]}"><span>${c}</span><div class="track"><div class="fill" style="width:${Math.min(d, 21) / 21 * 100}%"></div><div class="goal" style="left:${14 / 21 * 100}%"></div></div><span class="days">${d ? fmtD(d) : "unknown"}</span><small>${rs.map(r => esc(r.qty + " " + r.unit + " at " + r.use + " a day")).join(", ") || "No use rate yet"}</small></div>`; }).join("")}
+        </div>
+        <p class="fine">The line across each bar is the 2-week goal. Scale runs 0 to 21 days.</p>
+        <div class="row" style="gap:16px"><button class="linkbtn" data-route="supplies">Open the supplies sheet ${ic("arrow", 15)}</button><button class="linkbtn" data-route="check">Readiness check ${ic("arrow", 15)}</button></div>
+      </section>
+    </div>
+    <section style="display:flex;flex-direction:column;gap:10px"><h3>Needs attention</h3>${stack([[RECS.filter(r => r.st[0] === "ok").length, "ready", "ok"], [RECS.filter(r => r.st[0] === "due").length, "due", "due"], [RECS.filter(r => r.st[0] === "low").length, "low", "low"]])}<div class="rows">${due.map(r => `<button class="rowitem" data-route="place:${r.id}">${ic(r.icon)}<span class="grow">${esc(r.name)}<small>${esc(r.g)} · ${esc(r.stat)}</small></span>${pill(r.st)}${ic("arrow", 16)}</button>`).join("")}</div></section>
+    <section><h3>Pick up where you left off</h3><div class="rows">
+      <button class="rowitem" data-route="plan:p-power">${ic("list")}<span class="grow">Power out: first 2 hours<small>Plan · ${stepsOf(PLANS[0]).filter(s => ticks[s[0]]).length} of ${stepsOf(PLANS[0]).length} done</small></span>${ic("arrow", 16)}</button>
+      <button class="rowitem" data-route="learn:read:m6">${ic("book")}<span class="grow">Where There Is No Doctor<small>Manual · page 129, stopping bleeding</small></span>${ic("arrow", 16)}</button>
+    </div></section>`;
+  },
+  emergency() {
+    const s = SCEN.find(x => x.id === S.arg) || SCEN[0];
+    const m = PASS.find(p => p.id === ({ power: "m0", tornado: "m20", flood: "m17", heat: "m8", freeze: "m11", water: "m5", hurt: "m6", earthquake: "m21" })[s.id]);
+    const gear = s.id === "power" ? RECS.filter(r => r.g === "Power") : s.id === "water" ? RECS.filter(r => r.g === "Water") : s.id === "evac" ? RECS.filter(r => ["contact", "meet"].includes(r.id)) : [];
+    return `<div class="head"><div><p class="eyebrow" style="color:var(--signal)">Something happening</p><h1>${esc(s.title)}</h1></div>
+      <div class="row"><button class="btn" data-act="menu" aria-expanded="${S.menu}">Change situation</button><button class="btn" data-act="noop">${ic("print", 16)}Print this card</button></div></div>
+    ${S.menu ? `<div class="menu">${SCEN.map(x => `<button class="chip" data-route="emergency:${x.id}">${esc(x.title)}</button>`).join("")}</div>` : ""}
+    <div class="cols2">
+      <section style="display:flex;flex-direction:column;gap:14px"><ol class="steps">${s.steps.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ol>
+        ${s.id === "power" ? `<section class="panel"><p class="eyebrow">With the doors kept shut</p><h3>How long food stays safe</h3><div class="bars">${[["Fridge", 4, "4 hours"], ["Full freezer", 48, "48 hours"]].map(b => `<div class="bar wide" style="--c:var(--b-map)"><span>${b[0]}</span><div class="track"><div class="fill" style="width:${b[1] / 48 * 100}%"></div></div><span class="days">${b[2]}</span></div>`).join("")}</div><p class="fine">From step 2. Scale runs 0 to 48 hours.</p></section>` : ""}
+        <p class="fine">These steps come from the app's own situation cards. They show with no internet and no map.</p></section>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <section class="panel"><p class="eyebrow">Your gear for this</p>
+          ${gear.length ? `<div class="rows">${gear.map(r => `<button class="rowitem" data-route="place:${r.id}">${ic(r.icon)}<span class="grow">${esc(r.name)}<small>${esc(r.stat)}${r.lasts ? ", lasts " + esc(r.lasts) : ""}</small></span>${pill(r.st)}</button>`).join("")}</div>` : `<p class="sub">No records are linked to this situation yet.</p><div><button class="btn" data-route="place">${ic("plus", 16)}Add one</button></div>`}
+        </section>
+        ${m ? `<button class="quote" data-route="learn:read:${m.id}" style="text-align:left;background:none"><span class="eyebrow">From the manuals</span><span>${(x => esc(x.split(" ").slice(0, 34).join(" ")) + (x.split(" ").length > 34 ? "…" : ""))(/^[a-z]/.test(m.x) ? m.x.slice(m.x.indexOf(". ") + 2) : m.x)}</span><span class="src">${esc(m.doc)} · page ${m.p}</span></button>` : ""}
+        <button class="rowitem" data-route="map:near" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px">${ic("near")}<span class="grow">Nearest help on the map<small>Shelters, hospitals and water, by straight-line distance</small></span>${ic("arrow", 16)}</button>
+      </div>
+    </div>`;
+  },
+  map() {
+    if (S.mapEmpty) return `<div class="mapbox"><div class="emptymap"><section class="panel">${ic("map", 30)}<h2>No map on this Mac yet</h2>
+      <p class="sub">A map is downloaded once for your state. After that it works with no internet.</p>
+      <div class="row"><button class="btn pri" data-route="setup">Choose a state map</button><button class="btn" data-act="noop">${ic("drive", 16)}Use a drive that has maps</button></div>
+      ${S.mapq ? `<p class="sub">Your search for “${esc(S.mapq)}” needs a map first.</p>` : ""}
+      <p class="fine">The emergency steps, the manuals and your records all work without a map.</p></section></div></div>`;
+    const d = S.drawer, dh = (k, t) => `<div class="dhead"><h3>${t}</h3><button class="xbtn" data-act="drawer:${k}" aria-label="Close this panel">${ic("x", 16)}</button></div>`;
+    return `<div class="mapbox${d ? " has-drawer" : ""}"><canvas id="mapc" role="img" aria-label="Drawing of a map with contour lines, a creek, roads and three pins"></canvas>
+      <div class="maptop">
+        <label class="mapsearch">${ic("search", 17)}<input id="mapq" type="text" value="${esc(S.mapq)}" placeholder="Search the map" aria-label="Search the map"></label>
+        <div class="packchip">${ic("check", 14)}Texas · Standard</div>
+        <div class="maptools">
+          <button class="btn" data-act="drawer:layers" aria-pressed="${d === "layers"}">${ic("layers", 16)}<span>Layers</span></button>
+          <button class="btn" data-act="drawer:near" aria-pressed="${d === "near"}">${ic("near", 16)}<span>Near me</span></button>
+          <button class="btn" data-act="drawer:tools" aria-pressed="${d === "tools"}">${ic("ruler", 16)}<span>Measure</span></button>
+        </div>
+      </div>
+      ${d === "layers" ? `<div class="drawer">${dh("layers", "Layers")}${[["Your pins", "var(--signal)", 1], ["Water sources", "var(--map-water)", 1], ["Shelters", "var(--b-plan)", 1], ["Hospitals", "var(--low)", 0], ["Rail lines", "var(--ink)", 1], ["Old rail lines", "var(--ink2)", -1], ["Hill shading", "var(--map-line)", 1]].map((l, i) => l[2] < 0 ? `<label class="miss"><input type="checkbox" id="ly${i}" disabled><i class="swatch" style="background:${l[1]}"></i>${l[0]}, missing <button class="linkbtn" data-route="setup">Get it</button></label>` : `<label><input type="checkbox" id="ly${i}" ${l[2] ? "checked" : ""}><i class="swatch" style="background:${l[1]}"></i>${l[0]}</label>`).join("")}<p class="fine">A layer that is not in your map is marked missing, with a link to get it.</p></div>` : ""}
+      ${d === "near" ? `<div class="drawer">${dh("near", "Near me")}<p class="fine">Straight-line distance from your home base.</p><div class="rows">${[["Water shutoff", "On your lot", "flag"], ["Creek access", "0.6 mi north-east", "drop"], ["Meeting point", "0.5 mi south", "flag"], ["Shelter (example)", "2.1 mi west", "shield"]].map(r => `<div class="rowitem">${ic(r[2])}<span class="grow">${r[0]}<small>${r[1]}</small></span></div>`).join("")}</div></div>` : ""}
+      ${d === "tools" ? `<div class="drawer">${dh("tools", "Measure")}<p class="sub">Click two points on the map to get the distance and compass bearing between them.</p><p class="fine">Coordinates can be copied as latitude and longitude, UTM or USNG.</p></div>` : ""}
+      ${d === "search" ? `<div class="drawer">${dh("search", "Map search")}<p class="sub">You searched the map for “${esc(S.mapq)}”.</p><p class="fine">Not in this mock-up yet. The real app lists the towns, pins, water, shelters and hospitals that match.</p></div>` : ""}
+      <button class="mapfoot" data-act="ll">${S.showll ? coordLines(30.2747, -97.7404).filter((c, i) => i !== 1).map(c => "<b>" + c[1] + "</b>").join("<br>") + "<br>Home base, example point. Click to hide." : "Show coordinates · drawing only, the real app shows your state map here"}</button></div>`;
+  },
+  setup() {
+    const u = S.setup, list = STATES.filter(x => x.toLowerCase().includes(u.q.toLowerCase()));
+    const L = { lite: ["Lite", "Towns and main roads. Rough hills.", "Smallest"], standard: ["Standard", "Street level. Good hills.", "Best for most people"], full: ["Full", "Street level. Sharpest hills.", "Largest"] };
+    return `<div class="head"><div><h1>Get a state map</h1><p class="sub">This is the only part of the app that uses the internet. Checking the size and downloading both need it.</p></div><button class="btn" data-route="home">Skip for now</button></div>
+    <ol class="stepper">
+      <li><div><h3>Pick your state</h3><input class="field" id="stq" type="text" placeholder="Type to filter" value="${esc(u.q)}" aria-label="Filter states">
+        <div class="statelist">${list.map(x => `<button data-state="${x}" aria-pressed="${u.state === x}">${x}</button>`).join("") || `<span class="fine">No state matches.</span>`}</div></div></li>
+      <li><div><h3>Pick how much detail</h3><div class="opts">${Object.keys(L).map(k => `<button class="opt" data-level="${k}" aria-pressed="${u.level === k}"><b>${L[k][0]}</b><span>${L[k][1]}</span><span class="eyebrow" style="color:inherit;opacity:.75">${L[k][2]}</span></button>`).join("")}</div>
+        <label class="row"><input type="checkbox" id="stlayers" ${u.layers ? "checked" : ""}> Add the survival layers: water, shelters, hospitals, rail lines, old rail lines</label></div></li>
+      <li><div><h3>Pick where it goes</h3><div class="row"><button class="opt" data-dest="mac" aria-pressed="${u.dest === "mac"}"><b>This Mac</b></button><button class="opt" data-dest="drive" aria-pressed="${u.dest === "drive"}"><b>A drive</b><span>USB, SSD or SD card</span></button></div></div></li>
+    </ol>
+    <div class="row"><button class="btn" data-act="size" ${u.state ? "" : "disabled"}>Check the size</button><button class="btn pri" data-act="noop" ${u.checked ? "" : "disabled"}>Download ${esc(u.state || "")}</button>
+      <span class="fine">${!u.state ? "Pick a state first." : !u.checked ? "Check the size first, so you know it fits." : "In the real app the download size, the space it needs while working and your free space show here. Change any choice and it checks again."}</span></div>`;
+  },
+  place() {
+    const r = RECS.find(x => x.id === S.arg) || RECS[0], groups = [...new Set(RECS.map(x => x.g))];
+    return `<div class="split${S.listOpen ? " show-list" : ""}">
+      <div class="list"><button class="btn pri" data-act="noop">${ic("plus", 16)}Add something</button>
+        ${groups.map(g => `<h4>${ic(RECS.find(x => x.g === g).icon, 14)}${g}</h4>` + RECS.filter(x => x.g === g).map(x => `<button class="item" data-route="place:${x.id}" aria-current="${x.id === r.id}"><span>${esc(x.name)}</span>${pill(x.st)}</button>`).join("")).join("")}
+      </div>
+      <div class="detail">
+        <button class="linkbtn phone-only" data-act="list">${ic("back", 15)}All my stuff</button>
+        <div class="head"><div><p class="eyebrow">${esc(r.g)}</p><h1>${esc(r.name)}</h1></div><div class="row">${pill(r.st)}<button class="btn" data-act="noop">${ic("print", 16)}Print</button></div></div>
+        ${r.level ? `<div><div class="level"><i style="width:${r.level[0] / r.level[1] * 100}%"></i></div><p class="fine" style="margin-top:5px">${esc(r.stat)}${r.lasts ? ". Lasts " + esc(r.lasts) + " at today's use." : ""}</p></div>` : ""}
+        <dl class="facts">${r.facts.map(f => `<dt>${esc(f[0])}</dt><dd>${esc(f[1])}</dd>`).join("")}</dl>
+        ${r.pin ? `<section class="panel"><h3>Where is it?</h3><div class="row"><span class="pill ok">On the map</span><button class="btn" data-route="map">Show on map</button><button class="btn" data-act="ll" aria-expanded="${S.showll}">${ic("pin", 16)}${S.showll ? "Hide coordinates" : "Show coordinates"}</button></div>
+          ${S.showll ? coordHTML(r.ll) + `<p class="fine">Example point in downtown Austin, not a real home. All four formats are worked out on this Mac.</p>` : `<p class="fine">Coordinates stay hidden until you ask, so they never land in a screenshot by accident.</p>`}</section>` : ""}
+        ${r.log.length ? `<section><h3>Log</h3><div class="rows">${r.log.map(l => `<div class="rowitem"><span class="eyebrow" style="width:58px">${esc(l[0])}</span><span class="grow">${esc(l[1])}</span></div>`).join("")}</div></section>` : ""}
+        <p class="fine">Changes save by themselves.</p>
+      </div></div>`;
+  },
+  learn() {
+    if (S.arg === "read") {
+      const p = PASS.find(x => x.id === S.arg2) || PASS[0];
+      return `<div class="reader"><div><p class="eyebrow">${esc(p.doc)} · page ${p.p}</p><h1>${esc(p.h || p.doc)}</h1></div><p>${esc(p.x)}</p>
+        <div class="row"><button class="btn" data-act="noop">${ic("back", 16)}Page ${Math.max(1, p.p - 1)}</button><button class="btn" data-act="noop">Page ${p.p + 1}${ic("arrow", 16)}</button><button class="btn" data-act="noop">${ic("print", 16)}Print this page</button></div>
+        <p class="fine">This is real text from the manual in your library. Search opens the exact page, not just the cover.</p></div>`;
+    }
+    const t = TOPICS.find(x => x[0] === S.arg) || TOPICS[3], max = Math.max(...TOPICS.map(x => x[4]));
+    const HOW = [["Make water safe to drink", "m5", "drop"], ["Stop heavy bleeding", "m6", "plus"], ["Run a generator safely", "m2", "bolt"], ["Treat a burn", "m19", "alert"], ["Keep food safe with no power", "m0", "can"], ["Keep pipes from freezing", "m11", "gear"]];
+    return `<div class="head"><div><h1>Learn</h1><p class="sub">Start from the question you have. Everything listed is already on this Mac.</p></div><button class="btn" data-act="pal">${ic("search", 16)}Search inside the manuals</button></div>
+    ${S.wikiq ? `<section class="panel"><p class="eyebrow">Wiki library</p><h3>You searched the wiki library for “${esc(S.wikiq)}”</h3><p class="fine">Not in this mock-up yet. The real app opens the wiki library with this search already typed in.</p></section>` : ""}
+    <section style="display:flex;flex-direction:column;gap:10px"><h3>How do I</h3><div class="doors">${HOW.map(h => { const p = PASS.find(x => x.id === h[1]); return `<button class="door" data-route="learn:read:${h[1]}"><b>${ic(h[2])}${h[0]}</b><small>${esc(p.doc)}, page ${p.p}</small></button>`; }).join("")}</div></section>
+    <div class="cols2">
+      <section class="panel"><p class="eyebrow">Your library by topic</p><h2>What you can search</h2>
+        <div>${TOPICS.map(x => `<button class="barbtn" data-route="learn:${x[0]}" aria-pressed="${x === t}"><span class="bar wide" style="--c:var(--b-learn)"><span>${ic(x[2], 15)}${x[1]}</span><span class="track">${x[4] ? `<span class="fill" style="width:${x[4] / max * 100}%"></span>` : ""}</span><span class="days">${x[4] ? x[4].toLocaleString() : "photos"}</span></span></button>`).join("")}</div>
+        <p class="fine">Searchable sections in the manuals shown here, counted from the real library. Click a topic to open its shelf.</p></section>
+      <section class="panel"><p class="eyebrow">Shelf</p><h2>${esc(t[1])}</h2>
+        <div class="rows">${t[3].map(name => { const p = PASS.find(x => x.doc === name), n = SECTIONS[name]; return p ? `<button class="rowitem" data-route="learn:read:${p.id}">${ic("book")}<span class="grow">${esc(name)}<small>${n ? n.toLocaleString() + " sections · " : ""}opens on this Mac</small></span>${ic("arrow", 16)}</button>` : `<div class="rowitem off">${ic("book")}<span class="grow">${esc(name)}<small>${n ? n.toLocaleString() + " sections · " : ""}not in this mock-up</small></span></div>`; }).join("")}</div>
+        <p class="fine">In the real app every manual opens. This mock-up carries sample pages from some of them.</p></section>
+    </div>
+    <section><h3>Go deeper</h3><div class="rows"><button class="rowitem" data-act="noop">${ic("layers")}<span class="grow">Wiki library<small>Medical, repair, cooking, radio and survival collections. Starts only when you open it, to save battery.</small></span>${ic("arrow", 16)}</button></div></section>`;
+  },
+  plan() {
+    const p = PLANS.find(x => x.id === S.arg) || PLANS[0], st = stepsOf(p), done = st.filter(s => ticks[s[0]]).length, BANDS = ["First 15 min", "First hour", "By 2 hours"], timed = p.id === "p-power";
+    const ci = (id, f, def, ph) => `<input type="text" id="c-${id}-${f}" data-cell="${id}:${f}" value="${esc(cell(id, f, def))}" placeholder="${ph || ""}" aria-label="${f}">`;
+    const ta = (id, f, def) => `<textarea rows="1" id="c-${id}-${f}" data-cell="${id}:${f}" aria-label="${f}">${esc(cell(id, f, def))}</textarea>`;
+    const whenOf = s => cell(s[0], "when") || BANDS[0];
+    let body;
+    if (p.form) body = `<p class="sub">Fill in one row per person, then print it for every wallet and go-bag.</p>
+      <div class="sheetbox"><table class="sheet fit"><thead><tr><th style="width:28px"></th><th style="width:23%">Person</th><th style="width:23%">Phone</th><th>Where they would be</th><th style="width:84px">Check-in</th></tr></thead><tbody>${Array.from({ length: famN }, (_, i) => `<tr><td class="rn">${i + 1}</td><td>${ci("f" + i, "name", "", i ? "" : "Name")}</td><td>${ci("f" + i, "phone", "", i ? "" : "Phone")}</td><td>${ci("f" + i, "place", "", i ? "" : "Work, school or home")}</td><td>${ci("f" + i, "time", "", i ? "" : "8 pm")}</td></tr>`).join("")}</tbody></table></div>
+      <div><button class="btn" data-act="famrow">${ic("plus", 16)}Add a row</button></div>`;
+    else body = `<div class="row" style="gap:18px;align-items:stretch">${ring("done", done / st.length, "var(--b-plan)", done + " of " + st.length)}
+        ${timed ? `<div class="tl">${BANDS.map(b => { const ss = st.filter(s => whenOf(s) === b); return `<div><span class="eyebrow">${b}</span><div class="dots">${ss.map(s => `<i class="${ticks[s[0]] ? "on" : ""}" title="${esc(s[1])}"></i>`).join("")}</div><span class="fine">${ss.filter(s => ticks[s[0]]).length} of ${ss.length} done</span></div>`; }).join("")}</div>` : ""}</div>
+      <div class="sheetbox"><table class="sheet fit"><thead><tr><th style="width:28px"></th><th style="width:48px">Done</th><th>Step</th>${timed ? `<th style="width:108px">When</th>` : ""}<th style="width:78px">Who</th><th style="width:${timed ? 116 : 150}px">What you need</th></tr></thead><tbody>${st.map((s, i) => `<tr class="${S.arg2 === s[0] ? "hit" : ""}"><td class="rn">${i + 1}</td><td class="ck"><input type="checkbox" id="ck-${s[0]}" data-tick="${s[0]}" ${ticks[s[0]] ? "checked" : ""} aria-label="Done"></td><td>${ta(s[0], "text", s[1])}</td>${timed ? `<td><select id="c-${s[0]}-when" data-cell="${s[0]}:when" aria-label="When">${BANDS.map(b => `<option${whenOf(s) === b ? " selected" : ""}>${b}</option>`).join("")}</select></td>` : ""}<td>${ci(s[0], "who", "", "Anyone")}</td><td>${ta(s[0], "need")}</td></tr>`).join("")}</tbody></table></div>
+      <form class="row" id="addStep" data-plan="${p.id}"><input class="field" id="newStep" type="text" placeholder="Add a step" aria-label="Add a step"><button class="btn" type="submit">${ic("plus", 16)}Add a row</button><button class="linkbtn" type="button" data-act="untick" data-plan="${p.id}">Clear all checks</button></form>
+      <p class="fine">Type in any cell. Each row has its own ID, so a check stays with its step. Saved on this Mac.</p>`;
+    return `<div class="split plan${S.listOpen ? " show-list" : ""}">
+      <div class="list"><button class="btn pri" data-act="noop">${ic("plus", 16)}New checklist</button><h4>Your sheets</h4>
+        ${PLANS.map(x => `<button class="item" data-route="plan:${x.id}" aria-current="${x.id === p.id}"><span>${esc(x.name)}</span>${x.form ? "" : `<span class="eyebrow">${stepsOf(x).filter(s => ticks[s[0]]).length}/${stepsOf(x).length}</span>`}</button>`).join("")}
+        <h4>Blank templates</h4><button class="item" data-act="noop"><span>Go-bag list</span></button><button class="item" data-act="noop"><span>Radio check-in card</span></button>
+      </div>
+      <div class="detail">
+        <button class="linkbtn phone-only" data-act="list">${ic("back", 15)}All sheets</button>
+        <div class="head"><div><p class="eyebrow">${p.form ? "Card" : "Checklist"}</p><h1>${esc(p.name)}</h1></div><button class="btn" data-act="noop">${ic("print", 16)}Print</button></div>
+        ${body}
+      </div></div>`;
+  },
+  sun() {
+    const [pn, lat, lon, tz] = PLACES[S.loc], now = new Date(), Y = now.getFullYear(), M = now.getMonth(), D = now.getDate(), t = sunAt(Y, M, D, lat, lon);
+    const f = t.rise ? Math.max(0, Math.min(1, (now - t.rise) / (t.set - t.rise))) : .5, up = t.rise && now > t.rise && now < t.set, H = 20 + t.alt / 90 * 85;
+    const arc = Array.from({ length: 41 }, (_, i) => (30 + 240 * i / 40).toFixed(1) + "," + (125 - H * Math.sin(Math.PI * i / 40)).toFixed(1)).join(" ");
+    const k0 = lastNew(+now), new0 = moonAt(k0), P = (moonAt(k0 + 1) - new0) / 864e5, age = (now - new0) / 864e5, c = Math.cos(2 * Math.PI * age / P), wax = age < P / 2;
+    const mname = ["New moon", "Waxing crescent", "First quarter", "Waxing gibbous", "Full moon", "Waning gibbous", "Last quarter", "Waning crescent"][Math.round(age / P * 8) % 8];
+    const moon = `<svg width="46" height="46" viewBox="0 0 46 46" role="img" aria-label="${mname}"><circle cx="23" cy="23" r="19" fill="var(--sunk)" stroke="var(--line)"/><path d="M23 4A19 19 0 0 ${wax ? 1 : 0} 23 42A${(19 * Math.abs(c)).toFixed(1)} 19 0 0 ${(wax ? c > 0 : c < 0) ? 0 : 1} 23 4Z" fill="var(--b-place)"/></svg>`;
+    const X = d => 44 + d / 365 * 586, Yc = min => 10 + min / 1440 * 186, a = [], b = [];
+    for (let d = 0; d < 366; d += 4) { const q = sunAt(Y, 0, 1 + d, lat, lon); if (!q.rise) continue; a.push(X(d).toFixed(1) + "," + Yc(locMin(q.rise, tz)).toFixed(1)); b.unshift(X(d).toFixed(1) + "," + Yc(locMin(q.set, tz)).toFixed(1)); }
+    const doy = Math.round((Date.UTC(Y, M, D) - Date.UTC(Y, 0, 1)) / 864e5), jun = sunAt(Y, 5, 21, lat, lon), dec = sunAt(Y, 11, 21, lat, lon);
+    const cy = S.cal.y, cm = S.cal.m, first = new Date(cy, cm, 1).getDay(), dim = new Date(cy, cm + 1, 0).getDate();
+    const DUE = [[3, "Rain tote: clean"], [9, "Generator: test"], [16, "Rotate canned food"]].map(([o, l]) => { const x = new Date(Y, M, D + o); return [x.getFullYear(), x.getMonth(), x.getDate(), l]; });
+    let cells = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(w => `<div class="wd">${w}</div>`).join("") + `<div class="out"></div>`.repeat(first);
+    const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }), MOONS = {}, kc = lastNew(Date.UTC(cy, cm, 1));
+    for (let j = -1; j <= 2.5; j += .5) MOONS[ymd.format(moonAt(kc + j))] = j % 1 ? "Full moon" : "New moon";
+    for (let d = 1; d <= dim; d++) { const q = sunAt(cy, cm, d, lat, lon), mn = MOONS[cy + "-" + String(cm + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0")], due = DUE.filter(x => x[0] === cy && x[1] === cm && x[2] === d);
+      cells += `<div class="${cy === Y && cm === M && d === D ? "today" : ""}"><span class="dn">${d}</span><span>${fmtT(q.rise, tz)}</span><span>${fmtT(q.set, tz)}</span>${mn ? `<span class="moon">${mn}</span>` : ""}${due.map(x => `<span class="due">${x[3]}</span>`).join("")}</div>`; }
+    cells += `<div class="out"></div>`.repeat((7 - (first + dim) % 7) % 7);
+    const zones = [["Here: " + pn.replace(" (example)", ""), tz], ["UTC, the time radio operators use", "UTC"], ["Out-of-area contact (example: New York)", "America/New_York"]];
+    return `<div class="head"><div><h1>Sun and time</h1><p class="sub">Sunrise, sunset, the moon and the clocks, all worked out on this Mac from the date and a place. No internet.</p></div>${locSel()}</div>
+    <div class="cols2">
+      <section class="panel"><p class="eyebrow">Today at ${esc(pn.replace(" (example)", ""))}</p><h2>${up ? "The sun is up" : "The sun is down"}</h2>
+        <svg class="chart" viewBox="0 0 300 150" role="img" aria-label="Sun path today from sunrise to sunset"><line x1="10" y1="125" x2="290" y2="125" stroke="var(--ink2)"/><polyline points="${arc}" fill="none" stroke="var(--b-place)" stroke-width="2.5" stroke-dasharray="${up ? "" : "4 4"}"/>
+          ${up ? `<circle cx="${(30 + 240 * f).toFixed(1)}" cy="${(125 - H * Math.sin(Math.PI * f)).toFixed(1)}" r="8" fill="var(--b-place)" stroke="var(--surface)" stroke-width="2"/>` : ""}
+          <text x="30" y="142" text-anchor="middle">${fmtT(t.rise, tz)}</text><text x="270" y="142" text-anchor="middle">${fmtT(t.set, tz)}</text><text x="150" y="${(118 - H).toFixed(0)}" text-anchor="middle">noon ${fmtT(t.noon, tz)}, ${Math.round(t.alt)}° high</text></svg>
+        <dl class="facts"><dt>Daylight</dt><dd>${hm(t.len)}</dd><dt>Longest day, Jun 21</dt><dd>${hm(jun.len)}</dd><dt>Shortest day, Dec 21</dt><dd>${hm(dec.len)}</dd></dl>
+        <div class="row">${moon}<span><b>${mname}</b><br><span class="fine">Day ${Math.floor(age) + 1} of 29.5. A bright moon means you can move without a light.</span></span></div></section>
+      <section class="panel"><p class="eyebrow">Clocks</p><h2>What time is it there</h2>
+        <div>${zones.map(z => `<div class="clock"><span>${esc(z[0])}</span><b class="clk" data-tz="${z[1]}">${fmtT(now, z[1], true)}</b><small class="fine">${new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: z[1], timeZoneName: "short" }).format(now)}</small></div>`).join("")}</div>
+        <p class="fine">Radio schedules and weather bulletins use UTC. Your check-in times show in both zones, so nobody calls at 3 am.</p></section>
+    </div>
+    <section class="panel"><p class="eyebrow">Sun pattern, ${Y}</p><h2>Daylight through the year</h2>
+      <div class="chartscroll"><svg class="chart" style="min-width:540px" viewBox="0 0 640 222" role="img" aria-label="Sunrise and sunset times across the year">
+        <rect x="44" y="10" width="586" height="186" fill="var(--sunk)"/><polygon points="${a.concat(b).join(" ")}" fill="var(--b-place)" opacity=".45"/>
+        ${[[360, "6 am"], [720, "noon"], [1080, "6 pm"]].map(g => `<line x1="44" x2="630" y1="${Yc(g[0])}" y2="${Yc(g[0])}" stroke="var(--line)"/><text x="38" y="${Yc(g[0]) + 4}" text-anchor="end">${g[1]}</text>`).join("")}
+        ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => `<text x="${X((Date.UTC(Y, i, 15) - Date.UTC(Y, 0, 1)) / 864e5).toFixed(0)}" y="212" text-anchor="middle">${m}</text>`).join("")}
+        <line x1="${X(doy).toFixed(1)}" x2="${X(doy).toFixed(1)}" y1="10" y2="196" stroke="var(--ink)" stroke-width="2"/><text x="${Math.min(X(doy) + 5, 590).toFixed(0)}" y="22" style="fill:var(--ink)">today</text></svg></div>
+      <p class="fine">The colored band is daylight, in local clock time. The steps in spring and fall are the clock change. Pick another place at the top to see the pattern move.</p></section>
+    <section class="panel"><div class="head"><div><p class="eyebrow">Calendar</p><h2>${new Date(cy, cm, 1).toLocaleString("en-US", { month: "long", year: "numeric" })}</h2></div><span class="row"><button class="btn" data-act="calprev" aria-label="Previous month">${ic("back", 16)}</button><button class="btn" data-act="caltoday">Today</button><button class="btn" data-act="calnext" aria-label="Next month">${ic("arrow", 16)}</button><button class="btn" data-act="noop">${ic("print", 16)}Print month</button></span></div>
+      <div class="cal">${cells}</div>
+      <p class="fine">Each day shows sunrise and sunset. Orange lines are upkeep that comes due, taken from My Place. Print it and hang it on the wall.</p></section>`;
+  },
+  earth() {
+    const [pn, lat] = PLACES[S.loc], hi = Math.min(89, 90 - lat + 23.44), lo = Math.max(2, 90 - lat - 23.44);
+    const ray = (alt, color, label, ly) => { const dx = 112 / Math.tan(alt * D2R), ex = dx <= 250 ? 190 + dx : 440, ey = dx <= 250 ? 230 : 118 + 250 * Math.tan(alt * D2R), sx = 190 - 125 * Math.cos(alt * D2R), sy = 118 - 125 * Math.sin(alt * D2R);
+      return `<line x1="${sx.toFixed(0)}" y1="${sy.toFixed(0)}" x2="${ex.toFixed(0)}" y2="${ey.toFixed(0)}" stroke="${color}" stroke-width="2.5" stroke-dasharray="7 4"/><circle cx="${sx.toFixed(0)}" cy="${sy.toFixed(0)}" r="9" fill="${color}"/><text x="${(ly ? sx + 15 : Math.max(sx, 56)).toFixed(0)}" y="${(ly ? sy + 4 : sy - 16).toFixed(0)}" text-anchor="${ly ? "start" : "middle"}" style="fill:var(--ink)">${label} ${Math.round(alt)}°</text>`; };
+    const bd = (n, x, y) => `<circle cx="${x}" cy="${y}" r="10" fill="var(--ink)"/><text x="${x}" y="${y + 4}" text-anchor="middle" style="fill:var(--paper);font-weight:700">${n}</text>`;
+    const IDEAS = [["Heat and cool with the sun and the ground", "Glass faces south. Thick earth walls and the floor soak up winter sun and give it back at night. In summer the high sun misses the glass.", "sun", "See your sun angles"],
+      ["Make your own power", "Solar panels and a battery, sized to what you really use each day.", "place:station", "Open your power station"],
+      ["Catch your water", "The roof feeds a tank. One inch of rain on 1,000 square feet of roof is about 620 gallons.", "learn:read:m4", "Texas Manual on Rainwater Harvesting"],
+      ["Use water more than once", "Sink and shower water feeds indoor planters, then flushes the toilet, then waters outdoor beds.", "place:tote", "Open your rain tote"],
+      ["Grow food inside and out", "The sunny strip behind the glass is a greenhouse that works in winter.", "learn:plants", "Plants and planting dates"],
+      ["Build with what is around you", "Packed earth, reclaimed tires, cans and bottles. Heavy, cheap and close to hand.", "learn:tools", "Tools and repair shelf"]];
+    return `<div class="head"><div><h1>Living with the land</h1><p class="sub">Six ideas from earth-sheltered, sun-heated homes, the approach Earthships made famous. The drawing uses the real sun angles for the place you pick.</p></div>${locSel()}</div>
+    <section class="panel"><p class="eyebrow">Cut through the house, looking west</p><h2>How the house works with the sun</h2>
+      <div style="overflow-x:auto"><svg class="chart" style="min-width:520px" viewBox="0 -34 640 296" role="img" aria-label="Cross-section of an earth-sheltered house with summer and winter sun rays">
+        <polygon points="470,104 615,230 470,230" fill="var(--map-line)" opacity=".55"/><rect x="440" y="104" width="30" height="126" fill="var(--b-place)" opacity=".85"/>
+        <rect x="150" y="230" width="320" height="10" fill="var(--ink2)" opacity=".45"/><line x1="0" y1="230" x2="640" y2="230" stroke="var(--ink2)"/>
+        <line x1="186" y1="118" x2="472" y2="104" stroke="var(--ink)" stroke-width="5"/><line x1="150" y1="230" x2="190" y2="118" stroke="var(--b-map)" stroke-width="4"/>
+        <rect x="165" y="216" width="72" height="14" fill="var(--b-learn)"/><path d="M178 216v-14M190 216v-20M203 216v-12M216 216v-18M228 216v-10" stroke="var(--b-learn)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="300" y1="106" x2="352" y2="92" stroke="var(--ink)" stroke-width="5"/><line x1="340" y1="96" x2="340" y2="110" stroke="var(--ink)" stroke-width="2"/>
+        <rect x="520" y="188" width="46" height="38" rx="6" fill="var(--b-map)" opacity=".8"/><path d="M470 106L543 150V188" fill="none" stroke="var(--b-map)" stroke-width="2.5" stroke-dasharray="5 4"/>
+        ${ray(hi, "var(--signal)", "Summer noon", 1)}${ray(lo, "var(--b-place)", "Winter noon", 0)}
+        ${bd(1, 330, 216)}${bd(2, 326, 76)}${bd(3, 543, 207)}${bd(4, 176, 190)}${bd(5, 226, 190)}${bd(6, 455, 160)}
+        <text x="100" y="252" text-anchor="middle">south</text><text x="632" y="252" text-anchor="end">north side, banked with earth</text></svg></div>
+      <p class="fine">At ${esc(pn.replace(" (example)", ""))} the noon sun is ${Math.round(hi)}° high on Jun 21 and ${Math.round(lo)}° high on Dec 21. The low winter sun reaches deep into the room. The high summer sun stops near the glass.</p></section>
+    <section><h3>The six ideas</h3><div class="rows">${IDEAS.map((x, i) => `<button class="rowitem idea" data-route="${x[2]}"><span class="badge">${i + 1}</span><span class="grow"><b>${x[0]}</b><small>${x[1]}</small></span><span class="more">${x[3]}</span>${ic("arrow", 16)}</button>`).join("")}</div></section>
+    <section class="panel"><p class="eyebrow">Idea 4</p><h3>One gallon, used four times</h3><div class="flow"><span>Roof and tank</span><i>${ic("arrow", 16)}</i><span>Sink and shower</span><i>${ic("arrow", 16)}</i><span>Indoor planters</span><i>${ic("arrow", 16)}</i><span>Toilet flush</span><i>${ic("arrow", 16)}</i><span>Outdoor beds</span></div></section>
+    <p class="fine">This page is a plain summary with its own drawing. The real app needs openly licensed building manuals added to the library before these rows have full guides behind them.</p>`;
+  },
+  supplies() {
+    return `<div class="head"><div><h1>Supplies on hand</h1><p class="sub">Fill it in like a spreadsheet. The charts change as you type.</p></div><button class="btn" data-act="noop">${ic("print", 16)}Print shopping list</button></div>
+    <div class="cols2" id="supcharts">${supCharts()}</div>
+    <div style="display:flex;flex-direction:column;gap:8px"><label class="addbar">${ic("search", 18)}<input id="supq" type="text" value="${esc(S.supq || "")}" placeholder="Search your supplies, or type a new item and press enter" aria-label="Search or add supplies" autocomplete="off"><span class="kbd">↵ add</span></label><div class="sugg" id="supsugg">${supSugg()}</div></div>
+    <div class="sheetbox"><table class="sheet"><thead><tr><th></th><th>Item</th><th>Kind</th><th>On hand</th><th>Unit</th><th>Used per day</th><th>Days left</th><th></th></tr></thead><tbody id="suprows">${supRows()}</tbody></table></div>
+    <div class="row"><button class="btn" data-act="addrow">${ic("plus", 16)}Add a blank row</button><span class="fine">Days left is on hand divided by used per day. Saved on this Mac.</span></div>`;
+  },
+  check() {
+    const rows = (S.mapEmpty ? [["Map", "No map on this Mac yet", "low", "Missing", "Get a map", "setup"]] : [["Map of Texas opens", "Standard detail. One piece of the map was opened to be sure.", "ok", "Ready"], ["Hill shading", "Opened from the map files", "ok", "Ready"], ["Survival layers", "4 of 5 found. Old rail lines are missing.", "low", "Missing", "Get the layer", "setup"]]).concat([
+      ["Manuals", "18 manuals opened, 1 page each", "ok", "Ready"], ["Wiki library", "The reader started and answered", "ok", "Ready"], ["Your records", "9 records read", "ok", "Ready"], S.backed ? ["Backup", "Backed up just now (example)", "ok", "Ready"] : ["Backup", "Last backup was 23 days ago", "due", "Due", "Back up now", "act:backup"]]);
+    return `<div class="head"><div><h1>Readiness check</h1><p class="sub">This opens real files the same way you would with the Wi-Fi off. A missing file never gets a Ready mark.</p></div><button class="btn pri" data-act="recheck">Run it again</button></div>
+    ${S.checking < 0 ? stack([[rows.filter(r => r[2] === "ok").length, "ready", "ok"], [rows.filter(r => r[2] === "due").length, "due", "due"], [rows.filter(r => r[2] === "low").length, "missing", "low"]]) : ""}
+    <div class="rows">${rows.map((r, i) => { const wait = S.checking >= 0 && i > S.checking; return `<div class="rowitem"><span class="grow">${r[0]}<small>${wait ? "Checking…" : r[1]}</small></span>${wait ? "" : (r[4] ? `<button class="btn" ${r[5].startsWith("act:") ? `data-act="${r[5].slice(4)}"` : `data-route="${r[5]}"`}>${r[4]}</button>` : "") + `<span class="pill ${r[2]}">${r[3]}</span>`}</div>`; }).join("")}</div>
+    <p class="fine">Example results. In the app each line is a real test, and each failed line has a button that fixes it.</p>`;
+  }
+};
+
+/* ---------- notes for each screen ---------- */
+const N = {
+  home: { t: "Home", see: "Two things sit at the top: what is happening, and how long your supplies last. Below that is only what needs you.", tries: [["route:emergency:power", "Click Power out"], ["route:place:gen", "Open a due item"], ["pal:", "Open search"]],
+    ch: ["The second search box is gone. One search, in the sidebar.", "The four cards that repeated the sidebar are gone.", "Supplies runway moved up from My Place, so you see it without clicking.", "Six situations stay one click away."] },
+  search: { t: "Search", see: "One pop-up from anywhere. It fixes typos, knows short names, shows the best answer first, and goes straight to the page.", tries: [["pal:generater co", "generater co"], ["pal:no power", "no power"], ["pal:burn", "burn"], ["pal:battery", "battery"], ["pal:bleach water", "bleach water"], ["pal:shutoff", "shutoff"], ["pal:map", "map"]],
+    ch: ["Typos are fixed and you are told what was fixed.", "CO finds carbon monoxide. Blackout finds Power out. Fridge finds refrigerator.", "Whole words only, so burn no longer finds Blackburn.", "Emergency sheets rank above 1800s books.", "Plan steps are searched, not only plan titles.", "Arrow keys and enter work. Today enter only opens the first result."] },
+  emergency: { t: "Something happening", see: "Big numbered steps on the left. Your own gear for this situation and the matching manual page on the right.", tries: [["act:menu", "Change situation"], ["route:emergency:hurt", "Someone is hurt"], ["route:emergency:water", "No water"]],
+    ch: ["The orange button in the sidebar opens this from any screen. So does the E key.", "The wall of situation buttons is folded behind Change situation.", "Your gear shows how long it lasts, pulled from My Place.", "The manual quote opens the exact page."] },
+  map: { t: "Map", see: "The map fills the screen. Layers, Near me and Measure open as one panel you can close.", tries: [["act:empty", "Show it with no map installed"], ["act:drawer:near", "Open Near me"], ["act:drawer:layers", "Open Layers"]],
+    ch: ["Today a 300 px tool panel is always open next to the sidebar. Now tools open on demand.", "With no map, the screen tells you what to do next instead of staying blank.", "The state and detail level sit on the map, so you know what you are looking at.", "Rail lines stay a layer, so you can follow them between towns."] },
+  setup: { t: "Get maps", see: "Three choices in order, then a size check, then download. The download stays locked until the size is checked.", tries: [["act:pickstate", "Pick Texas"], ["route:map", "Back to the map"]],
+    ch: ["It says plainly that checking the size also needs internet. Today it says only the download does.", "A drive is a first-class choice, for a USB stick, an SSD or the Flipper SD card.", "You can skip it. Steps and manuals never wait on a map."] },
+  place: { t: "My Place", see: "Everything you own in one list, grouped by kind, with a status word on each. Click one to see it.", tries: [["route:place:gen", "Generator"], ["route:place:meet", "A pinned place"], ["pal:barrel", "Search barrel"]],
+    ch: ["One list replaces the tabs plus second sidebar.", "Icons are one drawn set. No more emoji mixed with symbols.", "Coordinates are hidden until you ask, which also keeps them out of screenshots.", "The level bar and days left sit at the top of the record."] },
+  supplies: { t: "Supplies sheet", see: "A spreadsheet for what you have. Type a number and the rings and bars move right away. The bar on top searches the sheet and adds new items.", tries: [["act:supdemo", "Type rice in the bar"], ["route:home", "See it on Home"], ["pal:supplies", "Find it from search"]],
+    ch: ["New screen. Today supplies are separate records you open one at a time.", "One bar both searches and adds. Enter adds the top match.", "Days left is worked out for you: on hand divided by used per day.", "Home's supplies bars read from this sheet."] },
+  sun: { t: "Sun and time", see: "A sun path for today, live clocks, the whole year of daylight, and a wall calendar. Everything is calculated on the Mac from the date and a place.", tries: [["act:loc:4", "Switch to Anchorage"], ["act:loc:3", "Switch to Miami"], ["act:calnext", "Next month"], ["pal:sunset", "Search sunset"]],
+    ch: ["New screen. Today's app has no clock, calendar or sun times.", "UTC sits next to local time, because radio schedules use it.", "The calendar shows sunrise, sunset, moon and upkeep that comes due.", "Works with no internet, since it is all math."] },
+  earth: { t: "Living with the land", see: "The six ideas behind earth-sheltered, sun-heated homes, with a cut-through drawing that uses the real summer and winter sun angles for your place.", tries: [["act:loc:2", "Redraw for Seattle"], ["act:loc:0", "Back to Austin"], ["route:sun", "Open Sun and time"], ["pal:earthship", "Search earthship"]],
+    ch: ["New page under Learn.", "Each idea links to something you already have: your tank, your power station, the rainwater manual.", "The drawing and words are my own summary. Earthship's own build guides belong to them, so the app needs openly licensed manuals for the deep detail."] },
+  learn: { t: "Learn", see: "Questions first, because that is how you arrive here. Below, a chart of the library that is also the menu, with the open shelf beside it.", tries: [["route:learn:read:m19", "Treat a burn"], ["route:learn:health", "Open the Health shelf"], ["pal:tourniquet", "Search tourniquet"]],
+    ch: ["Six common questions open the exact manual page in one click.", "The chart shows how much is in each topic and works as the menu.", "The shelf is visible without leaving the page.", "Things you can add later moved to a manage screen."] },
+  plan: { t: "Plan", see: "Each checklist is a sheet you fill in: step, when, who, what you need. The ring and the timeline show how far along you are.", tries: [["route:plan:p-family", "Family check-in card"], ["route:plan:p-shut", "Shutoffs"], ["pal:bathtub", "Search a step"]],
+    ch: ["Every cell can be typed in, like a spreadsheet.", "A friend's copy can make its own sheets. Today it says the plan is only in your edition.", "Each row has its own ID, so a check stays with its step. Today checks are saved by position.", "The timeline groups steps by when they are due and fills in as you tick."] },
+  check: { t: "Readiness check", see: "A plain list of tests. Each one says Ready, Due or Missing, and each problem has its own fix button.", tries: [["act:recheck", "Run it again"], ["route:home", "Back to Home"]],
+    ch: ["It moved from a tiny footer link to Home.", "Missing layers and a missing map are reported separately.", "Backup age is a test, so you find out before you need it."] }
+};
+const STRIP = [["home", "Home"], ["search", "Search"], ["emergency:power", "Something happening"], ["map", "Map"], ["setup", "Get maps"], ["place", "My Place"], ["supplies", "Supplies sheet"], ["sun", "Sun and time"], ["learn", "Learn"], ["earth", "Living with the land"], ["plan", "Plan"], ["check", "Readiness check"]];
+let noteKey = "home";
+
+/* ---------- render ---------- */
+function render(keep) {
+  const tab = TABOF[S.screen], T = TABS.find(t => t.id === tab);
+  const brand = `<div class="brand"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="6"/><path d="M6 20c3-7 6-9 9-9s5 3 9-3"/><path d="M6 24c4-5 7-7 10-7s5 2 8-1"/><circle cx="20" cy="9" r="1.6" fill="currentColor"/></svg><span><b>Fieldbook</b><small>Works offline</small></span></div>`;
+  const sos = `<button class="sos-btn" data-route="emergency:power" data-menu="1">${ic("alert")}<span>Something happening?</span><span class="kbd">E</span></button>`;
+  const find = `<button class="find-btn" data-act="pal" aria-label="Search">${ic("search", 17)}<span>Search or jump to</span><span class="kbd">⌘K</span></button>`;
+  $("#side").innerHTML = brand + sos + find + `<div class="tabs">${TABS.map(t => `<button class="tab" data-route="${t.id}" style="--c:var(--b-${t.id})" ${t.id === tab ? 'aria-current="page"' : ""}><span class="blaze"></span>${ic(t.icon)}<span>${t.label}</span><span class="kbd">${t.key}</span></button>${t.id === tab ? `<div class="subs">${t.sub.map(s => `<button data-route="${s[1]}">${esc(s[0])}</button>`).join("")}</div>` : ""}`).join("")}</div>
+    <div class="grow"></div><div class="foot"><button data-route="setup">${ic("down", 16)}Get maps</button><button data-route="check">${ic("shield", 16)}Readiness check</button><button data-act="noop">${ic("gear", 16)}Settings and backup</button><div class="state${S.mapEmpty ? " warn" : ""}"><i></i>${S.mapEmpty ? "No map yet · manuals ready" : "Offline ready · Texas map"}</div></div>`;
+  $("#topbar").innerHTML = brand + find + `<button class="sos-btn" data-route="emergency:power" data-menu="1" aria-label="Something happening">${ic("alert")}<span>Something happening?</span></button>`;
+  $("#tabbar").innerHTML = TABS.map(t => `<button data-route="${t.id}" style="--c:var(--b-${t.id})" ${t.id === tab ? 'aria-current="page"' : ""}>${ic(t.icon, 20)}${t.label}</button>`).join("");
+  $("#crumbs").style.setProperty("--c", S.screen === "emergency" ? "var(--signal)" : `var(--b-${tab})`);
+  $("#crumbs").innerHTML = (S.hist.length ? `<button class="backbtn" data-act="back" aria-label="Back">${ic("back", 16)}</button>` : "") + `<span class="sq"></span><span>${T.label}</span>` + (NAMES[S.screen] !== T.label ? `<span>/</span><b>${NAMES[S.screen]}</b>` : "") + `<span class="saved">saved on this Mac</span>`;
+  const v = $("#view"), d0 = v.querySelector(".detail"), top = keep ? [v.scrollTop, d0 ? d0.scrollTop : 0] : [0, 0];
+  v.className = "view" + (["map", "place", "plan"].includes(S.screen) ? " flush" : ""); v.innerHTML = V[S.screen](); v.scrollTop = top[0]; const d1 = v.querySelector(".detail"); if (d1) d1.scrollTop = top[1];
+  if (S.screen === "map" && !S.mapEmpty) drawMap();
+  fitTA();
+  noteKey = !$("#scrim").hidden ? "search" : S.screen; drawNotes();
+}
+function fitTA() { document.querySelectorAll(".sheet textarea").forEach(e => { e.style.height = "auto"; e.style.height = e.scrollHeight + "px"; }); }
+let toastT = 0;
+function toast(msg) { const e = $("#toast"); e.textContent = msg; e.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { e.hidden = true; }, 2200); }
+function drawNotes() {
+  const n = N[noteKey], at = STRIP.findIndex(s => s[0].split(":")[0] === noteKey);
+  $("#strip").innerHTML = STRIP.map((s, i) => `<button data-strip="${s[0]}" aria-pressed="${i === at}"><span class="n">${i + 1}</span>${s[1]}</button>`).join("")
+    + `<span class="gap"></span><button data-device="mac" aria-pressed="${S.device === "mac"}">Mac</button><button data-device="phone" aria-pressed="${S.device === "phone"}">Phone</button>`;
+  $("#notes").innerHTML = `<div><p class="eyebrow">Screen ${at + 1} of ${STRIP.length}</p><h2>${n.t}</h2></div><p>${n.see}</p>
+    <div><h3>Try it</h3><div class="tries">${n.tries.map(t => `<button data-try="${esc(t[0])}">${esc(t[1])}</button>`).join("")}</div></div>
+    <div><h3>Changed from today</h3><ul>${n.ch.map(c => `<li>${c}</li>`).join("")}</ul></div>`;
+}
+function drawMap() {
+  const c = $("#mapc"); if (!c) return;
+  const css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
+  const w = c.clientWidth, h = c.clientHeight, r = window.devicePixelRatio || 1; if (!w || !h) return;
+  c.width = w * r; c.height = h * r; const g = c.getContext("2d"); g.scale(r, r);
+  g.fillStyle = col("--map-land"); g.fillRect(0, 0, w, h);
+  const hills = [[.27, .42, 7, 1.3], [.7, .68, 6, 4.1], [.6, .14, 4, 2.2]], u = Math.min(w, h);
+  g.strokeStyle = col("--map-line");
+  hills.forEach(([hx, hy, n, seed]) => { for (let i = 0; i < n; i++) {
+    g.beginPath(); g.lineWidth = i % 3 === 2 ? 1.5 : .8; g.globalAlpha = i % 3 === 2 ? .9 : .6;
+    for (let k = 0; k <= 80; k++) { const a = k / 80 * Math.PI * 2, rad = (i + 1) * u * .052 * (1 + .14 * Math.sin(3 * a + seed) + .08 * Math.sin(5 * a + seed * 2 + i)); const x = hx * w + Math.cos(a) * rad * 1.25, y = hy * h + Math.sin(a) * rad; k ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke(); } });
+  g.globalAlpha = 1;
+  g.strokeStyle = col("--map-water"); g.lineWidth = 3; g.lineCap = "round"; g.beginPath(); g.moveTo(-10, h * .86); g.bezierCurveTo(w * .25, h * .8, w * .4, h * .62, w * .5, h * .52); g.bezierCurveTo(w * .6, h * .42, w * .78, h * .36, w + 10, h * .22); g.stroke();
+  g.strokeStyle = col("--ink2"); g.lineWidth = 2; g.globalAlpha = .55; g.beginPath(); g.moveTo(w * .08, -5); g.lineTo(w * .2, h * .3); g.lineTo(w * .46, h * .58); g.lineTo(w * .52, h + 5); g.moveTo(w * .46, h * .58); g.lineTo(w + 5, h * .78); g.stroke();
+  g.globalAlpha = .9; g.strokeStyle = col("--ink"); g.lineWidth = 1.6; g.setLineDash([9, 5]); g.beginPath(); g.moveTo(-5, h * .2); g.lineTo(w * .45, h * .34); g.lineTo(w + 5, h * .5); g.stroke(); g.setLineDash([]);
+  g.globalAlpha = 1; g.font = "600 12px 'Public Sans', sans-serif"; g.textBaseline = "middle";
+  [[.46, .58, "Home base", "--signal"], [.44, .8, "Meeting point", "--signal"], [.56, .46, "Creek access", "--map-water"]].forEach(([px, py, label, cv]) => {
+    const x = px * w, y = py * h; g.fillStyle = col("--surface"); g.beginPath(); g.arc(x, y, 8, 0, 7); g.fill(); g.fillStyle = col(cv); g.beginPath(); g.arc(x, y, 5.5, 0, 7); g.fill();
+    const tw = g.measureText(label).width; g.fillStyle = col("--surface"); g.fillRect(x + 12, y - 10, tw + 10, 20); g.fillStyle = col("--ink"); g.fillText(label, x + 17, y + .5); });
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-strip],[data-device],[data-try],[data-addsup],[data-delsup],[data-route],[data-act],[data-filter],[data-state],[data-level],[data-dest],[data-q]"); if (!t) { if (e.target.id === "scrim") { closePal(); render(); } return; }
+  const d = t.dataset;
+  if (t.closest("#palout")) return pickRes(t);
+  if (d.filter) { S.filter = d.filter; S.sel = 0; drawPal(); return $("#pq").focus(); }
+  if (d.strip) { closePal(); if (d.strip === "search") { go("home"); openPal("generater co"); noteKey = "search"; return drawNotes(); } S.mapEmpty = false; return go(d.strip); }
+  if (d.device) { S.device = d.device; $("#appwrap").classList.toggle("phone", d.device === "phone"); return render(); }
+  if (d.try) { const [k, ...rest] = d.try.split(":"), v = rest.join(":"); if (k === "pal") { openPal(v); noteKey = "search"; return drawNotes(); } closePal(); if (k === "route") return go(v); return act(v); }
+  if (d.addsup) return addSup(d.addsup);
+  if (d.delsup) { SUP = SUP.filter(r => r.id !== d.delsup); store.set("fb-sup", SUP); return render(true); }
+  if (d.state) { S.setup.state = d.state; S.setup.checked = false; return render(); }
+  if (d.level) { S.setup.level = d.level; S.setup.checked = false; return render(); }
+  if (d.dest) { S.setup.dest = d.dest; S.setup.checked = false; return render(); }
+  if (d.act) return act(d.act, t);
+  if (d.route) { go(d.route); if (d.menu) { S.menu = true; render(); } }
+});
+function act(a, t) {
+  if (a === "pal") { openPal(""); noteKey = "search"; return drawNotes(); }
+  if (a === "noop") return toast("Not in this mock-up yet");
+  if (a === "backup") { S.backed = true; render(true); return toast("Backed up (example)"); }
+  if (a === "back") return back();
+  if (a === "menu") { if (S.screen !== "emergency") go("emergency:power"); S.menu = !S.menu; return render(); }
+  if (a === "empty") { S.mapEmpty = !S.mapEmpty; if (S.screen !== "map") return go("map"); return render(); }
+  if (a.startsWith("drawer:")) { const k = a.slice(7); S.mapEmpty = false; if (S.screen !== "map") { S.drawer = k; return go("map:" + k); } S.drawer = S.drawer === k ? "" : k; return render(); }
+  if (a === "list") { S.listOpen = true; return render(); }
+  if (a === "addrow") { const row = { id: "u" + Date.now().toString(36), item: "", cat: "Gear", qty: "", unit: "", use: "" }; SUP.push(row); store.set("fb-sup", SUP); S.supq = ""; render(true); const e = document.getElementById("c-" + row.id + "-item"); if (e) e.focus(); return; }
+  if (a === "ll") { S.showll = !S.showll; return render(true); }
+  if (a.startsWith("loc:")) { S.loc = +a.slice(4); if (!["sun", "earth"].includes(S.screen)) return go("sun"); return render(true); }
+  if (a === "calprev" || a === "calnext" || a === "caltoday") { if (S.screen !== "sun") go("sun"); const d = a === "caltoday" ? new Date() : new Date(S.cal.y, S.cal.m + (a === "calnext" ? 1 : -1), 1); S.cal = { y: d.getFullYear(), m: d.getMonth() }; return render(true); }
+  if (a === "famrow") { famN++; store.set("fb-famn", famN); return render(true); }
+  if (a === "supdemo") { if (S.screen !== "supplies") go("supplies"); S.supq = "rice"; render(true); const e = $("#supq"); if (e) e.focus(); return; }
+  if (a === "size") { S.setup.checked = true; return render(); }
+  if (a === "pickstate") { if (S.screen !== "setup") go("setup"); S.setup.state = "Texas"; S.setup.q = ""; return render(); }
+  if (a === "untick") { const p = PLANS.find(x => x.id === t.dataset.plan); stepsOf(p).forEach(s => delete ticks[s[0]]); store.set("fb-ticks", ticks); return render(); }
+  if (a === "recheck") { if (S.screen !== "check") go("check"); if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; S.checking = -1 + 0; let i = 0; S.checking = 0; render(); const tick = () => { i++; S.checking = i >= 7 ? -1 : i; if (S.screen === "check") render(); if (i < 7) setTimeout(tick, 260); }; return void setTimeout(tick, 260); }
+}
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.tick) { if (t.checked) ticks[t.dataset.tick] = true; else delete ticks[t.dataset.tick]; store.set("fb-ticks", ticks); render(true); }
+  if (t.dataset.cell && t.dataset.cell.endsWith(":when")) render(true);
+  if (t.id === "locsel") { S.loc = +t.value; render(true); }
+  if (t.id === "stlayers") { S.setup.layers = t.checked; S.setup.checked = false; render(); }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "pq") { S.sel = 0; drawPal(); }
+  if (t.id === "supq") { S.supq = t.value; $("#supsugg").innerHTML = supSugg(); $("#suprows").innerHTML = supRows(); }
+  if (t.dataset.sup) { const [id, f] = t.dataset.sup.split(":"), r = SUP.find(x => x.id === id); if (r) { r[f] = t.value; store.set("fb-sup", SUP); $("#supcharts").innerHTML = supCharts(); const c = document.getElementById("d-" + id); if (c) c.innerHTML = daysCell(r); } }
+  if (t.dataset.cell) { cells[t.dataset.cell] = t.value; store.set("fb-cells", cells); if (t.tagName === "TEXTAREA") fitTA(); }
+  if (e.target.id === "stq") { S.setup.q = e.target.value; const at = e.target.selectionStart; render(); const i = $("#stq"); i.focus(); i.setSelectionRange(at, at); }
+});
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  if (e.target.id === "addStep") { const v = $("#newStep").value.trim(); if (!v) return; const pid = e.target.dataset.plan, id = "x" + Date.now().toString(36); (extra[pid] = extra[pid] || []).push([id, v]); store.set("fb-steps", extra);
+    addDoc("plan", v, PLANS.find(p => p.id === pid).name, { route: "plan:" + pid + ":" + id, icon: "list", sub: PLANS.find(p => p.id === pid).name }); render(); $("#newStep").focus(); }
+});
+document.addEventListener("keydown", e => {
+  const open = !$("#scrim").hidden, typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPal(""); noteKey = "search"; return drawNotes(); }
+  if (open) {
+    if (e.key === "Escape") { closePal(); return render(); }
+    if (e.key === "ArrowDown") { e.preventDefault(); S.sel++; return markSel(); }
+    if (e.key === "ArrowUp") { e.preventDefault(); S.sel--; return markSel(); }
+    if (e.key === "Enter") { e.preventDefault(); return pickRes(document.querySelector("#palout .res.sel")); }
+    if (e.key === "Tab") { e.preventDefault(); const i = FILTERS.findIndex(f => f[0] === S.filter); S.filter = FILTERS[(i + (e.shiftKey ? FILTERS.length - 1 : 1)) % FILTERS.length][0]; S.sel = 0; return drawPal(); }
+    return;
+  }
+  if (e.target.id === "supq" && e.key === "Enter") { e.preventDefault(); return addSup(e.target.value, true); }
+  if (e.target.id === "mapq" && e.key === "Enter") { e.preventDefault(); S.mapq = e.target.value.trim(); S.drawer = S.mapq ? "search" : ""; return render(); }
+  if (e.target.tagName === "TEXTAREA" && e.key === "Enter") return e.preventDefault();
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === "/") { e.preventDefault(); openPal(""); noteKey = "search"; return drawNotes(); }
+  if (e.key >= "1" && e.key <= "5") return go(TABS[+e.key - 1].id);
+  if (e.key.toLowerCase() === "e") { go("emergency:power"); S.menu = true; return render(); }
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => drawMap());
+new MutationObserver(() => drawMap()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+addEventListener("resize", () => { drawMap(); fitTA(); });
+setInterval(() => { const n = new Date(); document.querySelectorAll(".clk").forEach(e => { e.textContent = fmtT(n, e.dataset.tz, true); }); }, 1000);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawMap(); fitTA(); });
+
+/* ---------- audit tables ---------- */
+const AUDIT = __AUDIT__;
+$("#auditTable").innerHTML = `<table><thead><tr><th>#</th><th>Where</th><th>What is wrong today</th><th>The fix</th><th>Size</th></tr></thead><tbody>${AUDIT.map((r, i) => `<tr><td class="n">${i + 1}</td><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td><span class="size">${r[3]}</span></td></tr>`).join("")}</tbody></table>`;
+const SEARCHROWS = __SEARCHROWS__;
+$("#searchTable").innerHTML = `<table><thead><tr><th>You type</th><th>Today</th><th>In this mock-up</th><th></th></tr></thead><tbody>${SEARCHROWS.map(r => `<tr><td><b>${esc(r[0])}</b></td><td>${r[1]}</td><td>${r[2]}</td><td><button class="btn" data-try="pal:${esc(r[0])}">Try it</button></td></tr>`).join("")}</tbody></table>`;
+$("#buildOrder").innerHTML = __BUILD__.map(b => `<li><b>${b[0]}</b> <span class="size">${b[1]}</span><br>${b[2]}</li>`).join("");
+render();
+</script>
