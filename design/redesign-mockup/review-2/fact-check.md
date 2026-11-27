@@ -2,7 +2,7 @@
 
 An outside review of the mock-up came back on 27 November 2026 (`Fieldbook-redesign-review.pdf`, `Layout-and-build-notes.md`). We reproduced 25 of its claims against the same mock-up file in headless Chrome.
 
-Result: 23 true, 2 partly true, 0 false. None of this is fixed in the mock-up yet.
+Result: 23 true, 2 partly true, 0 false. Claim 20 (the water drawing) is now fixed. The rest is not fixed in the mock-up; it is being handled in the app build.
 
 Line numbers refer to `../fieldbook-redesign.src.html`.
 

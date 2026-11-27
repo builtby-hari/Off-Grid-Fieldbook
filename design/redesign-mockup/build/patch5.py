@@ -266,6 +266,11 @@ rep('''document.fonts.ready.then(() => drawMap());''', '''document.fonts.ready.t
 
 rep('["Run the readiness check", "offline test ready works", "check", "shield"]', '["Run the readiness check", "offline test ready works backup back up", "check", "shield"]')
 rep('PASS.forEach(p => addDoc("manual", p.h || p.doc, p.x, { route:', 'PASS.forEach(p => addDoc("manual", p.h || p.doc, p.x, { kw: p.kw || "", route:')
+
+# water reuse safety fix (review claim 20)
+rep('"Sink and shower water feeds indoor planters, then flushes the toilet, then waters outdoor beds."', '"Sink and shower water feeds indoor planters, then flushes the toilet. Flushed water goes to a septic tank, then to a lined, sealed planter with non-food plants. It never goes on food plants or open ground."')
+rep('<h3>One gallon, used four times</h3>', '<h3>One gallon, used three times, then treated</h3>')
+rep('<span>Toilet flush</span><i>${ic("arrow", 16)}</i><span>Outdoor beds</span></div></section>', '<span>Toilet flush</span><i>${ic("arrow", 16)}</i><span>Septic tank</span><i>${ic("arrow", 16)}</i><span>Lined, sealed planter: non-food plants only</span></div><p class="fine">Flushed water never goes on food plants or open ground. Reusing greywater and toilet water is regulated. Local rules come first.</p></section>')
 assert '—' not in src
 open(path, 'w').write(src)
 print('patched', len(src))

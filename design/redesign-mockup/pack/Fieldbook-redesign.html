@@ -970,7 +970,7 @@ const V = {
     const IDEAS = [["Heat and cool with the sun and the ground", "Glass faces south. Thick earth walls and the floor soak up winter sun and give it back at night. In summer the high sun misses the glass.", "sun", "See your sun angles"],
       ["Make your own power", "Solar panels and a battery, sized to what you really use each day.", "place:station", "Open your power station"],
       ["Catch your water", "The roof feeds a tank. One inch of rain on 1,000 square feet of roof is about 620 gallons.", "learn:read:m4", "Texas Manual on Rainwater Harvesting"],
-      ["Use water more than once", "Sink and shower water feeds indoor planters, then flushes the toilet, then waters outdoor beds.", "place:tote", "Open your rain tote"],
+      ["Use water more than once", "Sink and shower water feeds indoor planters, then flushes the toilet. Flushed water goes to a septic tank, then to a lined, sealed planter with non-food plants. It never goes on food plants or open ground.", "place:tote", "Open your rain tote"],
       ["Grow food inside and out", "The sunny strip behind the glass is a greenhouse that works in winter.", "learn:plants", "Plants and planting dates"],
       ["Build with what is around you", "Packed earth, reclaimed tires, cans and bottles. Heavy, cheap and close to hand.", "learn:tools", "Tools and repair shelf"]];
     return `<div class="head"><div><h1>Living with the land</h1><p class="sub">Six ideas from earth-sheltered, sun-heated homes, the approach Earthships made famous. The drawing uses the real sun angles for the place you pick.</p></div>${locSel()}</div>
@@ -987,7 +987,7 @@ const V = {
         <text x="100" y="252" text-anchor="middle">south</text><text x="632" y="252" text-anchor="end">north side, banked with earth</text></svg></div>
       <p class="fine">At ${esc(pn.replace(" (example)", ""))} the noon sun is ${Math.round(hi)}° high on Jun 21 and ${Math.round(lo)}° high on Dec 21. The low winter sun reaches deep into the room. The high summer sun stops near the glass.</p></section>
     <section><h3>The six ideas</h3><div class="rows">${IDEAS.map((x, i) => `<button class="rowitem idea" data-route="${x[2]}"><span class="badge">${i + 1}</span><span class="grow"><b>${x[0]}</b><small>${x[1]}</small></span><span class="more">${x[3]}</span>${ic("arrow", 16)}</button>`).join("")}</div></section>
-    <section class="panel"><p class="eyebrow">Idea 4</p><h3>One gallon, used four times</h3><div class="flow"><span>Roof and tank</span><i>${ic("arrow", 16)}</i><span>Sink and shower</span><i>${ic("arrow", 16)}</i><span>Indoor planters</span><i>${ic("arrow", 16)}</i><span>Toilet flush</span><i>${ic("arrow", 16)}</i><span>Outdoor beds</span></div></section>
+    <section class="panel"><p class="eyebrow">Idea 4</p><h3>One gallon, used three times, then treated</h3><div class="flow"><span>Roof and tank</span><i>${ic("arrow", 16)}</i><span>Sink and shower</span><i>${ic("arrow", 16)}</i><span>Indoor planters</span><i>${ic("arrow", 16)}</i><span>Toilet flush</span><i>${ic("arrow", 16)}</i><span>Septic tank</span><i>${ic("arrow", 16)}</i><span>Lined, sealed planter: non-food plants only</span></div><p class="fine">Flushed water never goes on food plants or open ground. Reusing greywater and toilet water is regulated. Local rules come first.</p></section>
     <p class="fine">This page is a plain summary with its own drawing. The real app needs openly licensed building manuals added to the library before these rows have full guides behind them.</p>`;
   },
   supplies() {
