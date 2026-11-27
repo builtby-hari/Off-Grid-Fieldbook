@@ -3,6 +3,8 @@
 // - Starts the bundled kiwix-serve for the .zim libraries
 // - Shows everything in a WKWebView
 // Built by Hari. Run with --serve-only to start just the server (for testing).
+// Launch options (Launch.swift): --port <n> (or OFFGRID_PORT), --open <screen> [--pack <slug>],
+// and offgrid://open?view=map&pack=texas links, which also work while the app is running.
 import Cocoa
 import WebKit
 

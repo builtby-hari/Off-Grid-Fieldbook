@@ -1,0 +1,24 @@
+REM Off-Grid: open "Start Here" from the Flipper's Off-Grid drive on a Mac.
+REM For your own computers only. Bad USB types as a US keyboard, so the Mac must use a US layout.
+REM
+REM How to use:
+REM   1. Plug the Flipper into the Mac. Run this script from Bad USB.
+REM   2. When Terminal says so, switch the Flipper to Mass Storage (the OFFGRID image).
+REM   3. The line below waits up to 3 minutes for a drive with offgrid-hub.json at its root,
+REM      opens "Start Here.html" from that drive, then closes the Terminal session.
+REM      If no drive shows up, it says so and leaves Terminal open.
+REM It only reads the drive. It changes nothing on the Mac.
+DEFAULT_DELAY 100
+DELAY 1500
+REM Open Terminal through Spotlight
+GUI SPACE
+DELAY 800
+STRING Terminal
+DELAY 800
+ENTER
+DELAY 3000
+REM One command line, typed in three parts (STRING does not press Enter), then Enter
+STRING clear;echo "Off-Grid: switch the Flipper to Mass Storage now. Waiting up to 3 minutes for the drive...";
+STRING d="";t=0;while [ -z "$d" ] && [ $t -lt 180 ];do for v in /Volumes/*;do [ -f "$v/offgrid-hub.json" ] && [ -f "$v/Start Here.html" ] && d="$v";done;[ -z "$d" ] && sleep 2 && t=$((t+2));done;
+STRING if [ -n "$d" ];then open "$d/Start Here.html";exit;else echo "Off-Grid: no Off-Grid drive found. Check the Flipper is in Mass Storage, then run this again.";fi
+ENTER

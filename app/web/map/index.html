@@ -40,6 +40,12 @@ label.row .n { color:var(--muted); font-size:12px; font-variant-numeric:tabular-
 #mapwrap { flex:1; position:relative; min-width:0; }
 #map { position:absolute; inset:0; }
 #toggle { position:absolute; top:10px; left:10px; z-index:3; background:var(--card); color:var(--ink); }
+/* Road / Satellite / Hybrid: one row of buttons beside the panel toggle, shown only when the pack has photos */
+#views { position:absolute; top:10px; left:56px; z-index:3; display:flex; background:var(--card); border-radius:var(--r); box-shadow:0 1px 3px rgba(0,0,0,.2); }
+#views .btn { border-radius:0; margin-left:-1px; }
+#views .btn:first-child { border-radius:var(--r) 0 0 var(--r); margin-left:0; }
+#views .btn:last-child { border-radius:0 var(--r) var(--r) 0; }
+#views .btn.on, #views .btn.on:hover { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); position:relative; }
 #coords { position:absolute; left:10px; bottom:30px; z-index:3; background:var(--card); color:var(--ink); padding:4px 8px; border-radius:var(--r); font:12px var(--mono); box-shadow:0 1px 3px rgba(0,0,0,.2); }
 #hint .btn { margin-left: 8px; padding: 2px 10px; color: inherit; border-color: currentColor; }
 #hint { position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:3; background:var(--ink); color:var(--bg); padding:7px 12px; border-radius:8px; font-size:13px; display:none; }
@@ -67,7 +73,7 @@ label.row .n { color:var(--muted); font-size:12px; font-variant-numeric:tabular-
 [class*="-anchor-left"] .maplibregl-popup-tip { border-right-color: var(--card); }
 [class*="-anchor-right"] .maplibregl-popup-tip { border-left-color: var(--card); }
 @media print {
-  #panel, #toggle, .btn, #hint, #pinform, #coords, .maplibregl-ctrl-top-right { display: none !important; }
+  #panel, #toggle, #views, .btn, #hint, #pinform, #coords, .maplibregl-ctrl-top-right { display: none !important; }
   #app { display: block; height: 100%; }
   #mapwrap { position: fixed; inset: 0; width: 100vw; height: 100vh; }
 }
@@ -111,6 +117,11 @@ label.row .n { color:var(--muted); font-size:12px; font-variant-numeric:tabular-
   </aside>
   <div id="mapwrap">
     <button class="btn ghost" id="toggle" type="button" aria-label="Show or hide the panel" title="Show or hide the panel">☰</button>
+    <div id="views" role="group" aria-label="Map view" hidden>
+      <button class="btn ghost" type="button" data-view="road" aria-pressed="false" title="Road map">Road</button>
+      <button class="btn ghost" type="button" data-view="satellite" aria-pressed="false" title="Aerial photos">Satellite</button>
+      <button class="btn ghost" type="button" data-view="hybrid" aria-pressed="false" title="Aerial photos with roads and names">Hybrid</button>
+    </div>
     <div id="map"></div>
     <div id="coords">Move over the map</div>
     <div id="hint"></div>
@@ -135,7 +146,7 @@ const base = location.origin + location.pathname.replace(/[^/]*$/, "");
 const START = [-98.58, 39.83];   // middle of the lower 48, used until you have a Home place or a saved view
 const TEXAS = [[-106.65, 25.84], [-93.51, 36.5]];
 // the active region: built-in files, or a pack from /packs/<slug>/ (another state, possibly on an external drive)
-let R = { slug: "", ov: "overlays/", terr: "terrain/", tb: [-98.6, 32.0, -95.8, 34.0], tz: 0 };
+let R = { slug: "", ov: "overlays/", terr: "terrain/", tb: [-98.6, 32.0, -95.8, 34.0], tz: 0, sat: null };
 const GROUP_COLORS = { "Water": "#1e88e5", "Medical": "#e53935", "Emergency": "#fb8c00", "Food & supplies": "#43a047",
   "Fuel & power": "#f9a825", "Shelter & outdoors": "#795548", "Community": "#8e24aa", "Comms": "#00acc1", "Transport": "#546e7a" };
 
@@ -172,6 +183,98 @@ const BASE = [
 ];
 const baseState = store.get("base", Object.fromEntries(BASE.map(b => [b.id, b.on])));
 
+// ---------- map view: Road, Satellite (aerial photos) or Hybrid (photos with roads and names on top) ----------
+const VIEWS = ["road", "satellite", "hybrid"];
+let viewPick = store.get("mapView", "road");
+if (!VIEWS.includes(viewPick)) viewPick = "road";
+let overSat = new Set();   // ids of this region's road-map layers that sit above the photos
+const activeView = () => (R.sat ? viewPick : "road");
+// Should a road-map layer show in this view? Layers under the photos always do (they fill gaps where there
+// are no photos). Layers above them hide in Satellite; in Hybrid only lines and labels stay.
+function viewShows(view, type, aboveSat) {
+  if (!aboveSat || view === "road") return true;
+  if (view === "satellite") return false;
+  return type === "line" || type === "symbol";
+}
+function layerShown(l) {
+  if (/^x_sat/.test(l.id)) return activeView() !== "road";
+  const g = BASE.find(b => b.test(baseId(l.id)));
+  return (!g || (g.id in baseState ? !!baseState[g.id] : g.on)) && viewShows(activeView(), l.type, overSat.has(l.id));
+}
+function applyVisibility() {
+  if (!map || !map.getStyle()) return;
+  for (const l of map.getStyle().layers) {
+    const want = layerShown(l) ? "visible" : "none";
+    if ((l.layout && l.layout.visibility || "visible") !== want) map.setLayoutProperty(l.id, "visibility", want);
+  }
+}
+function showViews() {
+  $("#views").hidden = !R.sat;
+  document.querySelectorAll("#views .btn").forEach(b => {
+    const on = b.dataset.view === activeView();
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+document.querySelectorAll("#views .btn").forEach(b => b.onclick = () => {
+  viewPick = b.dataset.view; store.set("mapView", viewPick); showViews(); applyVisibility();
+});
+
+// ---------- tiles inside one PMTiles file (terrain.pmtiles, satellite.pmtiles), read with Range requests ----------
+// One reader per file, shared by MapLibre's pmtiles:// sources and the elevation-line maker.
+function pmFor(url) {
+  let p = protocol.get(url);
+  if (!p) { p = new pmtiles.PMTiles(url); protocol.add(p); }
+  return p;
+}
+function zxyOf(url) {
+  const m = /\/(\d+)\/(\d+)\/(\d+)(?:\.\w+)?(?:[?#].*)?$/.exec(url);
+  return m ? [+m[1], +m[2], +m[3]] : null;
+}
+// The tile address pattern for a pack's terrain: loose z/x/y.png files in a folder (older packs),
+// or one terrain.pmtiles file (newer packs). packUrl is the pack's full address, ending in "/".
+function terrainTiles(part, packUrl) {
+  if (part && part.file) return { file: packUrl + part.file, tiles: "pmtiles://" + packUrl + part.file + "/{z}/{x}/{y}",
+    type: part.format === "png" ? "image/png" : "image/webp" };
+  return { file: "", tiles: packUrl + ((part && part.dir) || "terrain") + "/{z}/{x}/{y}.png", type: "image/png" };
+}
+// What to draw from satellite.pmtiles. The whole region has photos up to "maxzoom"; some areas (around home)
+// go sharper, up to their own zoom. Each sharp area becomes its own source limited to its box, so everywhere
+// else MapLibre just enlarges the last real photo instead of asking for tiles that are not there.
+function satPlan(part, header, meta, url) {
+  const off = (meta && meta.offgrid_sat) || {};
+  const top = header.maxZoom;
+  const maxzoom = Math.min(top, part.maxzoom != null ? part.maxzoom : off.maxzoom != null ? off.maxzoom : top);
+  const sharpest = Math.min(top, part.detail_maxzoom != null ? part.detail_maxzoom : top);
+  const okBox = b => b && b.length === 4 && b.every(isFinite) && b[0] < b[2] && b[1] < b[3];
+  const hb = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+  const detail = [];
+  for (const d of off.detail || []) {
+    const [box, z] = String(d).split(":"), b = box.split(",").map(Number), dz = Math.min(+z, sharpest);
+    if (okBox(b) && dz > maxzoom) detail.push({ bounds: b, minzoom: maxzoom + 1, maxzoom: dz });
+  }
+  return { tiles: "pmtiles://" + url + "/{z}/{x}/{y}", minzoom: header.minZoom || 0, maxzoom, detail,
+    bounds: okBox(hb) ? hb : okBox(off.bbox) ? off.bbox : null,
+    attribution: part.attribution || (meta && meta.attribution) || "USGS The National Map: Imagery" };
+}
+async function satInfo(part, packUrl) {
+  if (!part || !part.file || !window.pmtiles) return null;
+  const url = packUrl + part.file, pm = pmFor(url);
+  try {
+    const h = await pm.getHeader();   // a file that is still downloading has a blank header and fails here
+    if (h.tileType !== 3 && h.tileType !== 2 && h.tileType !== 4) return null;   // jpeg, png or webp photos only
+    const meta = await pm.getMetadata().catch(() => ({}));
+    return satPlan(part, h, meta, url);
+  } catch { return null; }
+}
+function satSources(sat) {
+  const src = { x_sat: { type: "raster", tiles: [sat.tiles], tileSize: 256, minzoom: sat.minzoom, maxzoom: sat.maxzoom, attribution: sat.attribution } };
+  if (sat.bounds) src.x_sat.bounds = sat.bounds;
+  sat.detail.forEach((d, i) => { src["x_sat_" + i] = { type: "raster", tiles: [sat.tiles], tileSize: 256, minzoom: d.minzoom, maxzoom: d.maxzoom, bounds: d.bounds, attribution: sat.attribution }; });
+  return src;
+}
+const satLayers = sat => ["x_sat", ...sat.detail.map((d, i) => "x_sat_" + i)].map((id, i) => ({ id, type: "raster", source: id,
+  minzoom: i ? sat.detail[i - 1].minzoom : 0, paint: { "raster-fade-duration": 0 } }));
+
 function extraLand() {
   return [
     { id: "x_forest", type: "fill", source: "protomaps", "source-layer": "landuse",
@@ -204,10 +307,17 @@ function style(file) {
   }
   const bg = layers.findIndex(l => l.type === "background");
   layers.splice(bg + 1, 0, ...under);        // neighbours sit under the picked region
-  for (const l of layers) {
-    const g = BASE.find(b => b.test(baseId(l.id)));
-    if (g && !baseState[g.id]) l.layout = Object.assign({}, l.layout, { visibility: "none" });
+  // Aerial photos go right under the water layer: above land colors (which still show where there are no
+  // photos), under water, roads and names. Hill shading and elevation lines are added later, also right
+  // under the water layer, so they land on top of the photos.
+  overSat = new Set();
+  if (R.sat) {
+    Object.assign(sources, satSources(R.sat));
+    const sat = satLayers(R.sat), w = layers.findIndex(l => l.id === "water");
+    layers.splice(w, 0, ...sat);
+    layers.slice(w + sat.length).forEach(l => { if (l.source === "protomaps") overSat.add(l.id); });
   }
+  for (const l of layers) if (!layerShown(l)) l.layout = Object.assign({}, l.layout, { visibility: "none" });
   return { version: 8, glyphs: base + "fonts/{fontstack}/{range}.pbf", sprite: base + "sprites/light", sources, layers };
 }
 
@@ -218,7 +328,7 @@ function buildBaseToggles() {
     cb.onchange = () => {
       baseState[b.id] = cb.checked; store.set("base", baseState);
       if (b.id === "hills" || b.id === "contours") addTerrain();
-      map.getStyle().layers.filter(l => b.test(baseId(l.id))).forEach(l => map.setLayoutProperty(l.id, "visibility", cb.checked ? "visible" : "none"));
+      applyVisibility();
     };
     box.append(el("label", { className: "row" }, cb, el("span", { className: "name", textContent: b.label })));
   });
@@ -259,10 +369,28 @@ async function findTerrain() {
   }
   return 0;
 }
+// Elevation lines come from maplibre-contour, which fetches its own tiles with plain fetch(). That can't read
+// inside a PMTiles file, so for packed terrain it runs on this page (worker: false) and its tile getter is
+// swapped for one that reads the same PMTiles file the hill shading uses. Tiles are decoded the usual way.
+function makeDem(t) {
+  if (!window.mlcontour) return null;
+  if (!t.file) return new mlcontour.DemSource({ url: t.tiles, encoding: "terrarium", maxzoom: terrainZ, worker: true });
+  const d = new mlcontour.DemSource({ url: t.tiles, encoding: "terrarium", maxzoom: terrainZ, worker: false });
+  if (!d.manager || typeof d.manager.getTile !== "function") return null;   // library changed: hill shading still works
+  const pm = pmFor(t.file);
+  d.manager.getTile = async (url, ac) => {
+    const zxy = zxyOf(url), tile = zxy && await pm.getZxy(zxy[0], zxy[1], zxy[2], ac && ac.signal);
+    if (!tile) throw new Error("No terrain tile " + url);
+    return { data: new Blob([tile.data], { type: t.type }), cacheControl: tile.cacheControl, expires: tile.expires };
+  };
+  return d;
+}
 function addTerrain() {
   if (!terrainZ || map.getSource("x_dem")) return;
-  const url = (R.terr.startsWith("/") ? location.origin + R.terr : base + R.terr) + "{z}/{x}/{y}.png";
-  if (!dem && window.mlcontour) { dem = new mlcontour.DemSource({ url, encoding: "terrarium", maxzoom: terrainZ, worker: true }); dem.setupMaplibre(maplibregl); }
+  const t = R.terrPart ? terrainTiles(R.terrPart, location.origin + "/packs/" + R.slug + "/")
+    : { file: "", tiles: (R.terr.startsWith("/") ? location.origin + R.terr : base + R.terr) + "{z}/{x}/{y}.png" };
+  const url = t.tiles;
+  if (!dem && (dem = makeDem(t))) dem.setupMaplibre(maplibregl);
   map.addSource("x_dem", { type: "raster-dem", tiles: [url], encoding: "terrarium", tileSize: 256, maxzoom: terrainZ, bounds: R.tb });
   const before = map.getLayer("water") ? "water" : undefined;
   map.addLayer({ id: "x_hills", type: "hillshade", source: "x_dem",
@@ -554,6 +682,7 @@ function startPick(id) {
 async function hashCommand() {
   const h = new URLSearchParams(location.hash.slice(1));
   history.replaceState(null, "", location.pathname);
+  if (h.get("pack") && PACKS["pack:" + h.get("pack")] && R.slug !== h.get("pack")) { $("#pick").value = "pack:" + h.get("pack"); await useRegion($("#pick").value); }
   if (h.get("pick")) { await loadRecords(true); startPick(h.get("pick")); }
   if (h.get("fly")) { const [lng, lat] = h.get("fly").split(",").map(Number); if (isFinite(lng) && isFinite(lat)) { map.jumpTo({ center: [lng, lat], zoom: 16 });
     flyMarker && flyMarker.remove(); flyMarker = new maplibregl.Marker({ color: "#d81b60" }).setLngLat([lng, lat]).addTo(map); } }
@@ -582,8 +711,10 @@ async function useRegion(val) {
   const p = PACKS[val];
   if (p) {
     const b = "/packs/" + p.slug + "/", pt = p.parts || {};
-    R = { slug: p.slug, ov: b + "layers/", terr: b + "terrain/", tb: p.bbox, tz: pt.terrain ? pt.terrain.maxzoom : -1 };
-  } else R = { slug: "", ov: "overlays/", terr: "terrain/", tb: [-98.6, 32.0, -95.8, 34.0], tz: 0 };
+    R = { slug: p.slug, ov: b + "layers/", terr: b + "terrain/", terrPart: pt.terrain || null, tb: p.bbox, tz: pt.terrain ? pt.terrain.maxzoom : -1,
+      sat: await satInfo(pt.satellite, location.origin + b) };
+  } else R = { slug: "", ov: "overlays/", terr: "terrain/", tb: [-98.6, 32.0, -95.8, 34.0], tz: 0, sat: null };
+  showViews();
   store.set("region", val);
   Object.keys(loaded).forEach(k => delete loaded[k]);
   if (map) INDEX.forEach(o => removeOverlay(o));
@@ -608,7 +739,8 @@ Promise.all([fetch("maps.json").then(r => r.json()), fetch("/api/packs").then(r 
   }
   list.forEach(f => pick.add(new Option(f.replace(".pmtiles", "") + " (built in)", f)));
   Object.entries(PACKS).forEach(([k, p]) => pick.add(new Option(p.name + (p.level ? " · " + p.level : ""), k)));
-  const saved = store.get("region", ""); pick.value = (saved && [...pick.options].some(o => o.value === saved)) ? saved : pick.options[0].value;
+  const want = new URLSearchParams(location.hash.slice(1)).get("pack");   // a link can ask for a pack: #pack=texas
+  const saved = (want && PACKS["pack:" + want]) ? "pack:" + want : store.get("region", ""); pick.value = (saved && [...pick.options].some(o => o.value === saved)) ? saved : pick.options[0].value;
   pick.onchange = () => useRegion(pick.value);
   return useRegion(pick.value);
 }).catch(() => { $("#err").textContent = "Open this with 'Open Maps.command' or the Off-Grid app."; });

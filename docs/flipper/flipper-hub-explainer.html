@@ -1,0 +1,278 @@
+<title>Off-Grid Flipper Hub</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=Silkscreen:wght@400;700&display=swap">
+<style>
+/* Layout: one column of numbered-free sections, each built around a drawing. The Flipper's orange LCD is the recurring object. */
+:root{
+  --bg:#f6f4f1; --surface:#ffffff; --ink:#1d1a17; --muted:#6a625a; --line:#ddd6cd;
+  --lcd:#ff8a1f; --lcd-ink:#1a0f00; --accent:#c95f00; --ok:#1f7a4d; --no:#b3261e; --slow:#8a6d00;
+  --fast-fill:#1f7a4d; --slow-fill:#d9a300; --hub:#3b6ea8; --free:#e6e0d8;
+  --display:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --pixel:"Silkscreen","Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark;
+    --bg:#16130f; --surface:#211d18; --ink:#f1ece5; --muted:#a69d92; --line:#3a332b;
+    --accent:#ff9d3d; --ok:#5fcf97; --no:#ff8a80; --slow:#e5c04a; --fast-fill:#3fae77; --slow-fill:#d9a300; --hub:#6ea3e0; --free:#332d26; }
+}
+:root[data-theme="dark"]{ color-scheme:dark;
+  --bg:#16130f; --surface:#211d18; --ink:#f1ece5; --muted:#a69d92; --line:#3a332b;
+  --accent:#ff9d3d; --ok:#5fcf97; --no:#ff8a80; --slow:#e5c04a; --fast-fill:#3fae77; --slow-fill:#d9a300; --hub:#6ea3e0; --free:#332d26; }
+
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1{font-family:var(--display);font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-size:22px;margin:0 0 4px;text-wrap:balance}
+p{margin:0;max-width:65ch}
+.lede{color:var(--muted);font-size:17px;margin-top:10px}
+.tag{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+section{display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.muted{color:var(--muted)} .small{font-size:14px}
+
+/* hero: flipper drawing + sentence */
+.hero{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.hero>div{flex:1 1 300px}
+.flipper{flex:0 0 auto;width:250px;max-width:100%;background:#f3f1ee;border:2px solid #1a1a1a;border-radius:22px;padding:14px;display:flex;gap:12px;align-items:center}
+.lcd{background:var(--lcd);color:var(--lcd-ink);font-family:var(--pixel);font-size:11px;line-height:1.5;border:2px solid #1a0f00;border-radius:4px;padding:6px 8px;flex:1;min-width:0}
+.lcd b{display:block;border-bottom:2px solid #1a0f00;margin-bottom:3px}
+.lcd .sel{background:#1a0f00;color:var(--lcd);padding:0 3px}
+.dpad{width:44px;height:44px;border-radius:50%;background:#ff8a1f;border:2px solid #1a1a1a;flex:0 0 auto;position:relative}
+.dpad::after{content:"";position:absolute;inset:13px;border-radius:50%;background:#f3f1ee;border:2px solid #1a1a1a}
+
+/* card bar */
+.bar{display:flex;height:38px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar span{display:block}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.layers h3{font-family:var(--display);font-size:17px;margin:0 0 2px}
+.layers ul{margin:8px 0 0;padding-left:18px}
+.layers li{margin:2px 0}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px;border:1px solid currentColor}
+.pill.slow{color:var(--slow)} .pill.fast{color:var(--ok)}
+
+/* tabs + steps */
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{font:600 14px var(--body);padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;counter-reset:s}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;position:relative;counter-increment:s}
+.step::before{content:counter(s);font-family:var(--display);font-weight:700;font-size:13px;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);margin-bottom:8px}
+.step b{display:block;font-family:var(--display);font-size:15px}
+.step .where{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mini-lcd{background:var(--lcd);color:var(--lcd-ink);font-family:var(--pixel);font-size:10px;border:2px solid #1a0f00;border-radius:4px;padding:4px 6px;margin-top:8px}
+
+/* popup page mock */
+.browser{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.chrome{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.chrome i{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+.chrome span{margin-left:8px;border:1px solid var(--line);border-radius:6px;padding:2px 10px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.page{padding:20px;display:flex;flex-direction:column;gap:14px}
+.page h3{font-family:var(--display);font-size:22px;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.tiles div{border:1px solid var(--line);border-radius:8px;padding:10px;font-size:14px;font-weight:500}
+.cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--accent);color:var(--bg);font-weight:600;border-radius:8px;padding:10px 16px;font-size:15px}
+.note{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--muted)}
+.callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;font-size:14px}
+.callouts div{padding-left:12px;border-left:3px solid var(--accent)}
+
+/* size rows */
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tw{overflow-x:auto}
+.track{background:var(--free);border-radius:4px;height:10px;min-width:120px}
+.track span{display:block;height:10px;border-radius:4px}
+.yes{color:var(--ok);font-weight:600} .nope{color:var(--no);font-weight:600}
+.speed{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.speed .big{font-family:var(--display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div>
+    <div class="tag">Plan, Nov 27 2026. Nothing is on the Flipper yet.</div>
+    <h1>How Off-Grid lives on your Flipper</h1>
+    <p class="lede">One SD card, two ways in. A small starter drive comes out through the Flipper's own USB. The big stuff sits on the same card and is read with a card reader.</p>
+  </div>
+  <div class="flipper" aria-label="Drawing of a Flipper Zero showing the Off-Grid menu">
+    <div class="lcd"><b>OFF-GRID</b><span class="sel">&gt; Something happening?</span><br>&nbsp; Learn<br>&nbsp; Tools<br>&nbsp; Radio<br>&nbsp; Location</div>
+    <div class="dpad"></div>
+  </div>
+</header>
+
+<section>
+  <div><h2>Will your idea work?</h2><p class="muted">Yes, with one change to how the big files travel.</p></div>
+  <div class="tw"><table>
+    <thead><tr><th>Your idea</th><th>Verdict</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td>Plug in the Flipper and Off-Grid opens</td><td class="yes">Works</td><td>Your Mac opens it by itself when the drive appears.</td></tr>
+      <tr><td>A page pops up on a friend's Mac</td><td class="yes">Works</td><td>Bad USB, then Mass Storage. Guides open from the Flipper.</td></tr>
+      <tr><td>They can download the app from the Flipper</td><td class="yes">Works</td><td>264 MB, so about 4 to 5 minutes at Flipper speed.</td></tr>
+      <tr><td>Road, Satellite and Hybrid map views</td><td class="yes">Works</td><td>Free public-domain photos. Being built now.</td></tr>
+      <tr><td>All the big data through the Flipper's USB</td><td class="nope">Too slow</td><td>Same SD card, read with a small card reader instead.</td></tr>
+      <tr><td>Runs straight from the drive, nothing installed</td><td style="color:var(--slow);font-weight:600">Being tested</td><td>Being checked on a test drive.</td></tr>
+      <tr><td>Windows and phones</td><td style="color:var(--slow);font-weight:600">Later</td><td>Mac first. The plan for them stays the same.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div><h2>What's being worked on</h2><p class="muted">Status at about 2:30 am, Nov 27. Mac only for now. Nothing has touched the Flipper.</p></div>
+  <div class="tw"><table>
+    <thead><tr><th>Piece</th><th>State</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Texas terrain in one file</td><td class="yes">Done</td><td>30,317 files became 1. 2.4 GB became 1.84 GB.</td></tr>
+      <tr><td>Texas satellite download</td><td style="color:var(--slow);font-weight:600">Running</td><td>82,000 of 705,000 tiles, 1.3 GB so far, about 6 hours left.</td></tr>
+      <tr><td>Road / Satellite / Hybrid switch in the map</td><td style="color:var(--slow);font-weight:600">In progress</td><td>Also makes the map read the one-file terrain.</td></tr>
+      <tr><td>Hub pack builder + tests</td><td style="color:var(--slow);font-weight:600">In progress</td><td>Checks the terrain is pixel-perfect, measures a light Texas map.</td></tr>
+      <tr><td>Mac drive detection + launchers</td><td style="color:var(--slow);font-weight:600">In progress</td><td>App notices the hub drive, auto-open helper, Bad USB script.</td></tr>
+      <tr><td>Popup "Start Here" page</td><td class="muted">Next</td><td>The front door on the starter drive.</td></tr>
+      <tr><td>Script that loads the SD card</td><td class="muted">Next</td><td>Needs a fresh card backup and a card reader first.</td></tr>
+      <tr><td>Test on the real Flipper</td><td class="muted">Needs you</td><td>Plug it in when the pieces above pass their checks.</td></tr>
+      <tr><td>App on the Flipper screen</td><td class="muted">After the hub</td><td>Menu, tools, GPS compass.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div><h2>The SD card, to scale</h2><p class="muted">A 128 GB card. Each block is its real share of the card.</p></div>
+  <div class="bar" role="img" aria-label="128 GB card: 2.5 GB Flipper files, 2 GB starter drive, about 36 GB full hub, about 87 GB free">
+    <span style="width:1.95%;background:#888"></span>
+    <span style="width:1.56%;background:var(--lcd)"></span>
+    <span style="width:28.1%;background:var(--hub)"></span>
+    <span style="flex:1;background:var(--free)"></span>
+  </div>
+  <div class="legend">
+    <span><i style="background:#888"></i>Your Flipper files, 2.5 GB (hidden, untouched)</span>
+    <span><i style="background:var(--lcd)"></i>Starter drive, under 2 GB</span>
+    <span><i style="background:var(--hub)"></i>Full hub, about 36 GB</span>
+    <span><i style="background:var(--free);border:1px solid var(--line)"></i>Free, about 87 GB (room for more states)</span>
+  </div>
+  <div class="layers">
+    <div class="panel">
+      <h3>Starter drive</h3>
+      <span class="pill slow">Through the Flipper's USB, slow</span>
+      <ul>
+        <li>The popup page and all the guides</li>
+        <li>Off-Grid app for Mac and Windows</li>
+        <li>PDF books, also readable on phones</li>
+        <li>A light Texas road map</li>
+        <li>Kiwix and map app installers</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Full hub</h3>
+      <span class="pill fast">Through a card reader, about 50x faster</span>
+      <ul>
+        <li>Texas satellite photos, 11 GB</li>
+        <li>Full Texas road map and terrain, 3 GB</li>
+        <li>Wikipedia, medical, repair, food, radio library, about 21 GB</li>
+        <li>Later: more states</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div><h2>What happens when you plug in</h2><p class="muted">Pick where you're plugging it.</p></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-mac" aria-selected="true" data-t="mac">Your Mac</button>
+    <button role="tab" id="t-friend" aria-selected="false" data-t="friend">A friend's computer</button>
+    <button role="tab" id="t-phone" aria-selected="false" data-t="phone">A phone</button>
+    <button role="tab" id="t-reader" aria-selected="false" data-t="reader">Card reader (full hub)</button>
+  </div>
+  <div class="steps" id="p-mac">
+    <div class="step"><span class="where">On the Flipper</span><b>Open Mass Storage</b>Pick the OFFGRID drive.<div class="mini-lcd">USB &gt; Mass Storage<br>&gt; OFFGRID</div></div>
+    <div class="step"><span class="where">Cable</span><b>Plug into your Mac</b>The Mac sees a drive called OFFGRID.</div>
+    <div class="step"><span class="where">On the Mac</span><b>Off-Grid opens by itself</b>A small helper notices the drive and opens the app on the Texas map.</div>
+    <div class="step"><span class="where">On the Mac</span><b>"Update Flipper?"</b>One click copies any new guides to the starter drive.</div>
+  </div>
+  <div class="steps" id="p-friend" hidden>
+    <div class="step"><span class="where">On the Flipper</span><b>Run Bad USB, then plug in</b>It types one line that tells the computer to wait for the drive.<div class="mini-lcd">Bad USB<br>&gt; Off-Grid</div></div>
+    <div class="step"><span class="where">On the Flipper</span><b>Switch to Mass Storage</b>The OFFGRID drive appears on their computer.</div>
+    <div class="step"><span class="where">Their screen</span><b>The Off-Grid page pops up</b>Guides are readable right away. Nothing is installed.</div>
+    <div class="step"><span class="where">Their choice</span><b>"Get the full app"</b>Copies the app from the Flipper in about 4 to 5 minutes. No internet needed.</div>
+  </div>
+  <div class="steps" id="p-phone" hidden>
+    <div class="step"><span class="where">On the Flipper</span><b>Open Mass Storage</b>Same OFFGRID drive.</div>
+    <div class="step"><span class="where">Cable</span><b>Plug into the phone</b>USB-C iPhones and most Androids. Older iPhones need an adapter.</div>
+    <div class="step"><span class="where">On the phone</span><b>Open the Files app</b>The Phone folder has the PDF guides and books.</div>
+    <div class="step"><span class="where">Optional</span><b>Install Kiwix</b>Then the phone can read the Wikipedia and medical library too.</div>
+  </div>
+  <div class="steps" id="p-reader" hidden>
+    <div class="step"><span class="where">Your hands</span><b>Pop the SD card out</b>Put it in the small USB-C reader you keep with the Flipper.</div>
+    <div class="step"><span class="where">Cable</span><b>Plug the reader in</b>Works on Mac, PC and phones.</div>
+    <div class="step"><span class="where">In the app</span><b>Satellite and Wikipedia light up</b>Off-Grid finds the full hub and adds it. The Road / Satellite / Hybrid switch works.</div>
+  </div>
+  <p class="small muted" id="flow-note">The helper on your Mac only reacts to a drive named OFFGRID.</p>
+</section>
+
+<section>
+  <div><h2>The popup page a friend would see</h2><p class="muted">A sketch of the idea, not a screenshot. It runs from the Flipper with nothing installed.</p></div>
+  <div class="browser">
+    <div class="chrome"><i></i><i></i><i></i><span>OFFGRID drive &rsaquo; Start Here</span></div>
+    <div class="page">
+      <h3>Off-Grid Fieldbook</h3>
+      <p class="muted">Offline survival guides, straight from this drive. No internet, no account.</p>
+      <div class="tiles"><div>Something happening?</div><div>First aid</div><div>Water</div><div>Shelter</div><div>Food</div><div>Radio</div></div>
+      <div class="cta"><span class="btn">Get the full app</span><span class="small muted">Copies from this drive. About 5 minutes.</span></div>
+      <div class="note">Want satellite maps and Wikipedia? Plug the card in with a reader, or download them later when you have internet.</div>
+    </div>
+  </div>
+  <div class="callouts">
+    <div><b>Works right away</b><br>Guides are plain pages, so they open instantly.</div>
+    <div><b>The map needs the app</b><br>The page is the front door. The app is the upgrade.</div>
+    <div><b>First open on a new Mac</b><br>macOS will ask them to allow the app once. The page shows the two clicks.</div>
+  </div>
+</section>
+
+<section>
+  <div><h2>Why the Flipper can't carry it all by USB</h2><p class="muted">Its USB moves about 1 MB each second. A card reader moves about 50.</p></div>
+  <div class="speed">
+    <div class="panel"><span class="pill slow">Flipper USB</span><div class="big">~3 hours</div><p class="small muted">to copy the 11 GB satellite map</p><div class="track" style="margin-top:10px"><span style="width:2%;background:var(--slow-fill)"></span></div></div>
+    <div class="panel"><span class="pill fast">Card reader</span><div class="big">~4 minutes</div><p class="small muted">for the same 11 GB</p><div class="track" style="margin-top:10px"><span style="width:100%;background:var(--fast-fill)"></span></div></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Thing</th><th>Size</th><th>Bar (out of 11 GB)</th><th>Through Flipper USB?</th></tr></thead>
+    <tbody>
+      <tr><td>Popup page + guides</td><td class="n">a few MB</td><td><div class="track"><span style="width:.5%;background:var(--fast-fill)"></span></div></td><td class="yes">Yes, instant</td></tr>
+      <tr><td>The Mac app</td><td class="n">0.26 GB</td><td><div class="track"><span style="width:2.4%;background:var(--fast-fill)"></span></div></td><td class="yes">Yes, about 5 minutes</td></tr>
+      <tr><td>PDF books</td><td class="n">0.09 GB</td><td><div class="track"><span style="width:.8%;background:var(--fast-fill)"></span></div></td><td class="yes">Yes</td></tr>
+      <tr><td>Light Texas road map</td><td class="n">~1 GB</td><td><div class="track"><span style="width:9%;background:var(--slow-fill)"></span></div></td><td class="yes">Yes, a bit slow</td></tr>
+      <tr><td>Full Texas road map + terrain</td><td class="n">3.2 GB</td><td><div class="track"><span style="width:29%;background:var(--hub)"></span></div></td><td class="nope">Card reader</td></tr>
+      <tr><td>Texas satellite</td><td class="n">11 GB</td><td><div class="track"><span style="width:100%;background:var(--hub)"></span></div></td><td class="nope">Card reader</td></tr>
+      <tr><td>Wikipedia + library</td><td class="n">~21 GB</td><td><div class="track"><span style="width:100%;background:var(--hub)"></span></div></td><td class="nope">Card reader</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small muted">The drive mode is also capped near 2 GB on the official app. Your firmware's real cap gets measured when the Flipper is plugged in.</p>
+</section>
+
+<section>
+  <div><h2>On the Flipper screen, with no computer</h2><p class="muted">The second thing to build. A normal menu, text pulled from the app.</p></div>
+  <div class="layers">
+    <div class="panel"><h3>Something happening?</h3><p class="small">Fire, flood, injury, power out. Step by step.</p></div>
+    <div class="panel"><h3>Learn</h3><p class="small">First aid, water, shelter, food. Short versions of the app's guides.</p></div>
+    <div class="panel"><h3>Tools</h3><p class="small">CPR beat, tourniquet timer, bleach-per-gallon calculator, SOS on the light and buzzer, weather sensor reader.</p></div>
+    <div class="panel"><h3>Radio</h3><p class="small">Frequency sheet for NOAA, GMRS, FRS and ham. The Flipper can show them but can't tune NOAA.</p></div>
+    <div class="panel"><h3>Location</h3><p class="small">Your coordinates, plus an arrow and distance to water, shelter or a hospital. Needs the GPS add-on.</p></div>
+    <div class="panel"><h3>Never on it</h3><p class="small">Your plan, your records, your home details. The Flipper is safe to lose or lend.</p></div>
+  </div>
+</section>
+
+</div>
+<script>
+const notes={mac:"The helper on your Mac only reacts to a drive named OFFGRID.",
+ friend:"Bad USB and the drive can't run at the same time, which is why there are two steps on the Flipper. Still to be checked on your device.",
+ phone:"Phones can open the PDFs straight away. Maps on a phone need a map app, which is a later step.",
+ reader:"This is the fast path for the big files, and the way the card gets loaded in the first place."};
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  ['mac','friend','phone','reader'].forEach(k=>document.getElementById('p-'+k).hidden=k!==b.dataset.t);
+  document.getElementById('flow-note').textContent=notes[b.dataset.t];
+}));
+</script>

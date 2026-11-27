@@ -1,0 +1,9 @@
+REM NOT MAINTAINED: the Flipper hub is Mac only for now. This old script does not wait for the
+REM Off-Grid drive and does not match the hub layout. Don't copy it to the Flipper until it is rewritten.
+REM Off-Grid Fieldbook launcher for Windows. Edit the path below to where the Fieldbook folder lives.
+DEFAULT_DELAY 200
+DELAY 1500
+GUI r
+DELAY 600
+STRING cmd /c start "" "D:\Off-Grid Fieldbook\Off-Grid Fieldbook.cmd"
+ENTER

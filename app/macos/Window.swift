@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var web: WKWebView!
     var server: Server!
     var port: UInt16 = 0
+    /// A screen asked for before the server was ready (from --open/--pack or an offgrid:// link).
+    var pendingRoute: String? = launchRouteFromArgs()
 
     func applicationDidFinishLaunching(_ n: Notification) {
         buildMenu()
@@ -35,11 +37,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 DispatchQueue.main.async {
                     guard let self, self.port == 0 else { return }
                     self.port = p
-                    self.web.load(URLRequest(url: URL(string: "http://127.0.0.1:\(p)/hub/index.html")!))
+                    self.web.load(URLRequest(url: self.shellURL(self.pendingRoute)))
+                    self.pendingRoute = nil
                 }
             }
         } catch {
             web.loadHTMLString("<h2>Off-Grid could not start its local server.</h2><p>\(error)</p>", baseURL: nil)
+        }
+    }
+
+    func shellURL(_ route: String?) -> URL {
+        URL(string: "http://127.0.0.1:\(port)/hub/index.html" + (route.map { "#" + $0 } ?? ""))!
+    }
+
+    // offgrid://open?view=map&pack=texas opens that screen, whether the app was running or not.
+    func application(_ a: NSApplication, open urls: [URL]) {
+        guard let route = urls.lazy.compactMap({ launchRoute(url: $0) }).first else { return }
+        show(route: route)
+    }
+
+    /// Brings the window forward on a screen. Before the server is up, the route waits for it.
+    func show(route: String) {
+        if window != nil {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        guard port > 0, web != nil else { pendingRoute = route; return }
+        // The shell is already open: change its address in place so open screens keep their state.
+        // Setting the same address again does nothing in a browser, so fire the change by hand then.
+        if web.url?.path == "/hub/index.html", web.url?.port == Int(port),
+           let enc = try? JSONSerialization.data(withJSONObject: ["#" + route]), let arr = String(data: enc, encoding: .utf8) {
+            let js = "(h => { if (location.hash === h) dispatchEvent(new HashChangeEvent('hashchange')); else location.hash = h; })(\(arr)[0])"
+            web.evaluateJavaScript(js, completionHandler: nil)
+        } else {
+            web.load(URLRequest(url: shellURL(route)))
         }
     }
 
@@ -116,6 +148,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.mainMenu = main
     }
 
-    @objc func goHome() { if port > 0 { web.load(URLRequest(url: URL(string: "http://127.0.0.1:\(port)/hub/index.html")!)) } }
+    @objc func goHome() { if port > 0 { web.load(URLRequest(url: shellURL(nil))) } }
     @objc func reload() { web.reload() }
 }

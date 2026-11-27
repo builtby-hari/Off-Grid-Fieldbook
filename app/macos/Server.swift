@@ -22,7 +22,8 @@ final class Server {
         addr.sin_addr.s_addr = inet_addr("127.0.0.1")
         var len = socklen_t(MemoryLayout<sockaddr_in>.size)
         // Same port every launch when it's free, so saved ticks and settings stick. Else any free port.
-        let ok = [UInt16(47321), 0].contains { want in
+        // OFFGRID_PORT=<n> or --port <n> uses only that port (0 = any free port), e.g. for a test copy.
+        let ok = serverPorts().contains { want in
             addr.sin_port = want.bigEndian
             return withUnsafeMutablePointer(to: &addr) {
                 $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, len) == 0 }
@@ -105,6 +106,7 @@ final class Server {
         var path = String(parts[1].split(separator: "?", maxSplits: 1).first ?? "/")
         if path == "/" { path = "/hub/index.html" }
         if path.hasSuffix("/") { path += "index.html" }
+        if env["OFFGRID_LOG"] != nil { FileHandle.standardError.write(Data("\(parts[0]) \(path)\n".utf8)) }   // debugging only
 
         if path == "/api/manifest" { return send(c, 200, "application/json", manifest()) }
 
@@ -148,6 +150,7 @@ final class Server {
             return send(c, 200, "application/json", (try? JSONSerialization.data(withJSONObject: list)) ?? Data("[]".utf8))
         }
         if path == "/api/packs" { return send(c, 200, "application/json", packList()) }
+        if path == "/api/hub" { return send(c, 200, "application/json", hubState()) }
         if path.hasPrefix("/packs/") && packFile(path) == nil { return send(c, 404, "text/plain", Data("Not found".utf8)) }
         let mediaFile: URL? = path.hasPrefix("/packs/") ? packFile(path) : path.hasPrefix("/media/") && dataNameOK(String(path.dropFirst(7)))
             ? dataDir.appendingPathComponent("media").appendingPathComponent(String(path.dropFirst(7))) : nil
@@ -176,6 +179,14 @@ final class Server {
         let length = max(0, end - start + 1)
         var extra = ["Accept-Ranges": "bytes"]
         if status == 206 { extra["Content-Range"] = "bytes \(start)-\(end)/\(size)" }
+        // Pack files can switch between a hub drive and this Mac's copy when a drive is plugged or pulled.
+        // A tag that names the exact file lets the map's PMTiles reader notice and reread the header,
+        // instead of mixing byte ranges from two different files.
+        if mediaFile != nil, path.hasPrefix("/packs/") {
+            let mt = ((attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
+            let dev = (attrs[.systemNumber] as? NSNumber)?.uint64Value ?? 0, ino = (attrs[.systemFileNumber] as? NSNumber)?.uint64Value ?? 0
+            extra["ETag"] = "\"\(String(dev, radix: 16))-\(String(ino, radix: 16))-\(String(size, radix: 16))-\(String(Int64(mt * 1000), radix: 16))\""
+        }
         guard sendHeader(c, status, mime, length, extra), !isHead else { return }
         try? fh.seek(toOffset: UInt64(start))
         var remaining = length
